@@ -39,7 +39,8 @@ export default function DriverPage({ params }: { params: { driverId: string } })
   const progressToNextSlab = nextSlab ? (totalTrips / nextSlab.min_trips) * 100 : 100;
 
   const getRouteName = (routeId: string) => {
-    return routes.find(r => r.id === routeId)?.name || 'Unknown Route';
+    const route = routes.find(r => r.id === routeId);
+    return route ? `${route.place_a} to ${route.place_b}` : 'Unknown Route';
   }
 
   return (

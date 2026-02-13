@@ -43,7 +43,7 @@ export default function ReportsPage() {
         return {
           ...trip,
           driverName: driver?.name || 'Unknown Driver',
-          routeName: route?.name || 'Unknown Route',
+          routeName: route ? `${route.place_a} to ${route.place_b}` : 'Unknown Route',
           dateObj: parseISO(trip.date)
         }
       })
@@ -137,7 +137,9 @@ export default function ReportsPage() {
             <SelectContent>
               <SelectItem value="all">{t('allRoutes')}</SelectItem>
               {routes.map(route => (
-                <SelectItem key={route.id} value={route.id}>{route.name}</SelectItem>
+                <SelectItem key={route.id} value={route.id}>
+                    {route.place_a} to {route.place_b}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>

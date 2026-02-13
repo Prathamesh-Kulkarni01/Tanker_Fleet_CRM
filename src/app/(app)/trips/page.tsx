@@ -75,7 +75,7 @@ export default function TripsPage() {
         ...data,
         id: `trip-${Date.now()}`,
         driverName: driver?.name,
-        routeName: route?.name,
+        routeName: route ? `${route.place_a} to ${route.place_b}` : 'Unknown Route',
     };
     setRecentTrips(prev => [newTrip, ...prev].slice(0,5)); // Keep last 5
 
@@ -151,7 +151,7 @@ export default function TripsPage() {
                         <SelectContent>
                           {activeRoutes.map((route) => (
                             <SelectItem key={route.id} value={route.id}>
-                              {route.name}
+                              {route.place_a} to {route.place_b}
                             </SelectItem>
                           ))}
                         </SelectContent>

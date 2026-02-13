@@ -39,13 +39,14 @@ import * as z from 'zod';
 import { useI18n } from '@/lib/i18n';
 import { useToast } from '@/hooks/use-toast';
 import { routes as initialRoutes, trips, Route } from '@/lib/data';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus, Edit, Trash2, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/contexts/auth';
 import { Alert, AlertTitle, AlertDescription as AlertDescriptionComponent } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 
 const routeSchema = z.object({
-  name: z.string().min(3, { message: 'Route name must be at least 3 characters.' }),
+  place_a: z.string().min(3, { message: 'Place A must be at least 3 characters.' }),
+  place_b: z.string().min(3, { message: 'Place B must be at least 3 characters.' }),
   rate_per_trip: z.coerce.number().positive({ message: 'Rate must be a positive number.' }),
 });
 
@@ -65,13 +66,13 @@ export default function RoutesPage() {
 
   const handleAddRoute = () => {
     setEditingRoute(null);
-    form.reset({ name: '', rate_per_trip: 0 });
+    form.reset({ place_a: '', place_b: '', rate_per_trip: 0 });
     setIsDialogOpen(true);
   };
 
   const handleEditRoute = (route: Route) => {
     setEditingRoute(route);
-    form.reset({ name: route.name, rate_per_trip: route.rate_per_trip });
+    form.reset({ place_a: route.place_a, place_b: route.place_b, rate_per_trip: route.rate_per_trip });
     setIsDialogOpen(true);
   };
 
@@ -85,7 +86,7 @@ export default function RoutesPage() {
   const onSubmit = (data: RouteFormValues) => {
     if (editingRoute) {
       // Edit existing route
-      setRoutes(routes.map(r => r.id === editingRoute.id ? { ...r, ...data } : r));
+      setRoutes(routes.map(r => r.id === editingRoute.id ? { ...editingRoute, ...data } : r));
     } else {
       // Add new route
       const newRoute: Route = {
@@ -136,7 +137,11 @@ export default function RoutesPage() {
             <Card key={route.id} className={!route.is_active ? 'bg-muted/50' : ''}>
               <CardHeader>
                 <div className="flex justify-between items-start">
-                  <CardTitle>{route.name}</CardTitle>
+                  <CardTitle className="flex items-center gap-2 flex-wrap">
+                    <span>{route.place_a}</span>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span>{route.place_b}</span>
+                  </CardTitle>
                   <Badge variant={route.is_active ? 'secondary' : 'outline'}>
                     {route.is_active ? t('active') : t('inactive')}
                   </Badge>
@@ -209,12 +214,21 @@ export default function RoutesPage() {
           </DialogHeader>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">{t('routeName')}</Label>
-                <Input id="name" {...form.register('name')} />
-                {form.formState.errors.name && (
-                  <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
-                )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="place_a">{t('placeA')}</Label>
+                  <Input id="place_a" {...form.register('place_a')} />
+                  {form.formState.errors.place_a && (
+                    <p className="text-sm text-destructive">{form.formState.errors.place_a.message}</p>
+                  )}
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="place_b">{t('placeB')}</Label>
+                  <Input id="place_b" {...form.register('place_b')} />
+                  {form.formState.errors.place_b && (
+                    <p className="text-sm text-destructive">{form.formState.errors.place_b.message}</p>
+                  )}
+                </div>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="rate_per_trip">{t('ratePerTrip')}</Label>
