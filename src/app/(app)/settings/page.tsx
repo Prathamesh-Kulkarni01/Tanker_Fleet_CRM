@@ -1,7 +1,7 @@
 'use client';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { slabs as initialSlabs, tripTypes as initialTripTypes } from '@/lib/data';
+import { slabs as initialSlabs } from '@/lib/data';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Trash2 } from 'lucide-react';
@@ -39,17 +39,7 @@ const slabsFormSchema = z.object({
   ),
 });
 
-const tripTypeSchema = z.object({
-  id: z.string(),
-  name: z.string().min(1, 'Trip type name cannot be empty.'),
-});
-
-const tripTypesFormSchema = z.object({
-  tripTypes: z.array(tripTypeSchema),
-});
-
 type SlabsFormValues = z.infer<typeof slabsFormSchema>;
-type TripTypesFormValues = z.infer<typeof tripTypesFormSchema>;
 
 export default function SettingsPage() {
   const { t } = useI18n();
@@ -77,27 +67,6 @@ export default function SettingsPage() {
       description: t('payoutSlabsUpdated'),
     });
   };
-  
-  const tripTypesForm = useForm<TripTypesFormValues>({
-    resolver: zodResolver(tripTypesFormSchema),
-    defaultValues: {
-      tripTypes: initialTripTypes,
-    },
-    mode: 'onChange',
-  });
-
-  const { fields: tripTypeFields, append: appendTripType, remove: removeTripType } = useFieldArray({
-    control: tripTypesForm.control,
-    name: 'tripTypes',
-  });
-
-  const onTripTypesSubmit = (data: TripTypesFormValues) => {
-    console.log('Saving trip types:', data.tripTypes);
-    toast({
-      title: t('settingsSaved'),
-      description: t('tripTypesUpdated'),
-    });
-  };
 
   if (!user) return null;
 
@@ -119,9 +88,8 @@ export default function SettingsPage() {
     <div className="p-4 md:p-8">
       <h1 className="text-2xl font-bold mb-4">{t('settings')}</h1>
       <Tabs defaultValue="slabs">
-        <TabsList className={`grid w-full max-w-md grid-cols-3`}>
+        <TabsList className={`grid w-full max-w-sm grid-cols-2`}>
           <TabsTrigger value="slabs">{t('payoutSlabs')}</TabsTrigger>
-          <TabsTrigger value="trip-types">{t('tripTypes')}</TabsTrigger>
           <TabsTrigger value="month-lock">{t('monthLock')}</TabsTrigger>
         </TabsList>
 
@@ -219,60 +187,6 @@ export default function SettingsPage() {
                       <PlusCircle className="h-3.5 w-3.5" />
                       {t('addSlab')}
                     </Button>
-                </CardContent>
-              </Card>
-            </form>
-          </Form>
-        </TabsContent>
-
-        <TabsContent value="trip-types">
-           <Form {...tripTypesForm}>
-            <form onSubmit={tripTypesForm.handleSubmit(onTripTypesSubmit)}>
-              <Card>
-                <CardHeader>
-                  <div className="flex justify-between items-center">
-                    <CardTitle>{t('tripTypes')}</CardTitle>
-                     <Button type="submit" size="sm" className="gap-1">{t('saveChanges')}</Button>
-                  </div>
-                   <p className="text-sm text-muted-foreground pt-1">{t('tripTypeConfigWillBeHere')}</p>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2 max-w-sm">
-                    {tripTypeFields.map((field, index) => (
-                      <div key={field.id} className="flex items-center gap-2">
-                        <FormField
-                          control={tripTypesForm.control}
-                          name={`tripTypes.${index}.name`}
-                          render={({ field }) => (
-                            <FormItem className="flex-1">
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeTripType(index)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="gap-1"
-                    onClick={() => appendTripType({ id: `new-${tripTypeFields.length}`, name: '' })}
-                  >
-                    <PlusCircle className="h-3.5 w-3.5" />
-                    {t('addTripType')}
-                  </Button>
                 </CardContent>
               </Card>
             </form>

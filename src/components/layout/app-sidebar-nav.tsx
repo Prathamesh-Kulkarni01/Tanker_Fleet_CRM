@@ -14,6 +14,7 @@ import {
   CircleDollarSign,
   Settings,
   Users,
+  Map,
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -90,6 +91,15 @@ export function AppSidebarNav() {
             </SidebarMenuSubItem>
           ))}
         </SidebarMenuSub>
+      </SidebarMenuItem>
+
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild isActive={pathname.startsWith('/routes')} tooltip={t('routes')}>
+          <Link href="/routes">
+            <Map />
+            <span>{t('routes')}</span>
+          </Link>
+        </SidebarMenuButton>
       </SidebarMenuItem>
 
       <SidebarMenuItem>

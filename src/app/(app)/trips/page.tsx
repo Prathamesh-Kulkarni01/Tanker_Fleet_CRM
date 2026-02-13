@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { drivers, tripTypes } from '@/lib/data';
+import { drivers, routes } from '@/lib/data';
 import { useI18n } from '@/lib/i18n';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -27,7 +27,7 @@ export default function TripsPage() {
         (date) => new Date(date) <= new Date(),
         { message: t('dateCannotBeFuture') }
     ),
-    tripType: z.string().min(1, t('tripTypeRequired')),
+    routeId: z.string().min(1, t('routeRequired')),
     tripCount: z.coerce.number().positive(t('tripCountPositive')),
   });
 
@@ -35,7 +35,7 @@ export default function TripsPage() {
   
   const defaultValues: Partial<TripFormValues> = {
       date: new Date().toISOString().substring(0, 10),
-      tripType: tripTypes[0]?.name || '',
+      routeId: '',
       driverId: '',
       tripCount: '' as any,
   };
@@ -56,6 +56,8 @@ export default function TripsPage() {
     });
     form.reset(defaultValues);
   };
+  
+  const activeRoutes = routes.filter(r => r.is_active);
 
   return (
     <div className="p-4 md:p-8 flex justify-center">
@@ -107,20 +109,20 @@ export default function TripsPage() {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormField
                   control={form.control}
-                  name="tripType"
+                  name="routeId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('tripType')}</FormLabel>
+                      <FormLabel>{t('route')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                          <FormControl>
                             <SelectTrigger>
-                                <SelectValue placeholder={t('selectTripType')} />
+                                <SelectValue placeholder={t('selectRoute')} />
                             </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {tripTypes.map((type) => (
-                            <SelectItem key={type.id} value={type.name}>
-                              {type.name}
+                          {activeRoutes.map((route) => (
+                            <SelectItem key={route.id} value={route.id}>
+                              {route.name}
                             </SelectItem>
                           ))}
                         </SelectContent>

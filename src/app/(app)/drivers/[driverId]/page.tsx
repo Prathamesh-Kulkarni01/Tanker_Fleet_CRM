@@ -1,12 +1,12 @@
 'use client';
-import { drivers, trips, slabs, tripTypes } from '@/lib/data';
+import { drivers, trips, slabs, routes } from '@/lib/data';
 import { notFound } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { PayoutInsights } from '@/components/driver/payout-insights';
 import { format } from 'date-fns';
-import { Truck, DollarSign, Award, TrendingUp, Calendar } from 'lucide-react';
+import { Truck, DollarSign, Award, TrendingUp, Calendar, MapPin } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import { useI18n } from '@/lib/i18n';
@@ -37,18 +37,9 @@ export default function DriverPage({ params }: { params: { driverId: string } })
 
   const progressToNextSlab = nextSlab ? (totalTrips / nextSlab.min_trips) * 100 : 100;
 
-  const dailyTrips = currentMonthTrips.reduce(
-    (acc, trip) => {
-      const day = trip.date;
-      if (!acc[day]) {
-        acc[day] = { total: 0, counts: {} };
-      }
-      acc[day].counts[trip.tripType] = (acc[day].counts[trip.tripType] || 0) + trip.count;
-      acc[day].total += trip.count;
-      return acc;
-    },
-    {} as Record<string, { total: number; counts: Record<string, number> }>
-  );
+  const getRouteName = (routeId: string) => {
+    return routes.find(r => r.id === routeId)?.name || 'Unknown Route';
+  }
 
   return (
     <div className="space-y-6">
@@ -141,25 +132,26 @@ export default function DriverPage({ params }: { params: { driverId: string } })
             <TableHeader>
               <TableRow>
                 <TableHead>{t('date')}</TableHead>
-                {tripTypes.map(tt => (
-                    <TableHead key={tt.id} className="text-center hidden sm:table-cell">{tt.name} Trips</TableHead>
-                ))}
-                <TableHead className="text-right">{t('dailyTotal')}</TableHead>
+                <TableHead>{t('route')}</TableHead>
+                <TableHead className="text-right">{t('trips')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {Object.entries(dailyTrips)
-                .sort(([dateA], [dateB]) => dateB.localeCompare(dateA))
-                .map(([date, data]) => (
-                  <TableRow key={date}>
+              {[...currentMonthTrips]
+                .sort((a, b) => b.date.localeCompare(a.date))
+                .map((trip) => (
+                  <TableRow key={trip.id}>
                     <TableCell className="font-medium">
-                      {format(new Date(date), 'MMM d, yyyy')}
+                      {format(new Date(trip.date), 'MMM d, yyyy')}
                     </TableCell>
-                     {tripTypes.map(tt => (
-                        <TableCell key={tt.id} className="text-center hidden sm:table-cell">{data.counts[tt.name] || 0}</TableCell>
-                    ))}
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-muted-foreground" />
+                        {getRouteName(trip.routeId)}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right font-semibold">
-                      {data.total}
+                      {trip.count}
                     </TableCell>
                   </TableRow>
                 ))}

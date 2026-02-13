@@ -1,8 +1,8 @@
 'use server';
 
 import { driverPayoutInsights, DriverPayoutInsightsInput } from '@/ai/flows/driver-payout-insights-flow';
-import { trips, drivers, slabs, pastMonthSummaries, MonthlySummary } from './data';
-import { format, startOfMonth } from 'date-fns';
+import { trips, drivers, slabs, pastMonthSummaries, routes } from './data';
+import { format } from 'date-fns';
 
 export async function getDriverInsights(driverId: string) {
   try {
@@ -17,11 +17,14 @@ export async function getDriverInsights(driverId: string) {
     // Get current month's trip entries
     const currentMonthTripEntries = trips
       .filter(t => t.driverId === driverId && t.date.startsWith(currentMonthStr))
-      .map(t => ({
-        trip_type: t.tripType,
-        trip_count: t.count,
-        date: t.date,
-      }));
+      .map(t => {
+          const route = routes.find(r => r.id === t.routeId);
+          return {
+            trip_type: route?.name || 'Unknown Route',
+            trip_count: t.count,
+            date: t.date,
+          }
+      });
 
     // Calculate total trips for the current month
     const currentMonthTotalTrips = currentMonthTripEntries.reduce((acc, t) => acc + t.trip_count, 0);
