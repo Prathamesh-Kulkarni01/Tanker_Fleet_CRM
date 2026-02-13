@@ -28,6 +28,26 @@ export function AppSidebarNav() {
 
   if (!user) return null;
 
+  if (user.role === 'driver') {
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            asChild
+            isActive={pathname === `/drivers/${user.id}`}
+            tooltip={t('dashboard')}
+          >
+            <Link href={`/drivers/${user.id}`}>
+              <LayoutDashboard />
+              <span>{t('dashboard')}</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    );
+  }
+
+  // Owner view
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -39,16 +59,14 @@ export function AppSidebarNav() {
         </SidebarMenuButton>
       </SidebarMenuItem>
 
-      {user.role !== 'driver' && (
-        <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={pathname === '/trips'} tooltip={t('tripEntry')}>
-            <Link href="/trips">
-              <Truck />
-              <span>{t('tripEntry')}</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      )}
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild isActive={pathname === '/trips'} tooltip={t('tripEntry')}>
+          <Link href="/trips">
+            <Truck />
+            <span>{t('tripEntry')}</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
 
       <SidebarMenuItem>
         <SidebarMenuButton
@@ -56,62 +74,54 @@ export function AppSidebarNav() {
           isActive={pathname.startsWith('/drivers')}
           tooltip={t('driverInsights')}
         >
-          <Link href={user.role === 'driver' ? `/drivers/${user.id}` : '/drivers/d1'}>
+          <Link href={'/drivers/d1'}>
             <Users />
             <span>{t('driverInsights')}</span>
           </Link>
         </SidebarMenuButton>
-        {user.role !== 'driver' && (
-          <SidebarMenuSub>
-            {drivers.map((driver) => (
-              <SidebarMenuSubItem key={driver.id}>
-                <SidebarMenuSubButton asChild isActive={pathname === `/drivers/${driver.id}`}>
-                  <Link href={`/drivers/${driver.id}`}>
-                    <span>{driver.name}</span>
-                  </Link>
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-            ))}
-          </SidebarMenuSub>
-        )}
+        <SidebarMenuSub>
+          {drivers.map((driver) => (
+            <SidebarMenuSubItem key={driver.id}>
+              <SidebarMenuSubButton asChild isActive={pathname === `/drivers/${driver.id}`}>
+                <Link href={`/drivers/${driver.id}`}>
+                  <span>{driver.name}</span>
+                </Link>
+              </SidebarMenuSubButton>
+            </SidebarMenuSubItem>
+          ))}
+        </SidebarMenuSub>
       </SidebarMenuItem>
 
-      {user.role !== 'driver' && (
-        <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={pathname === '/reports'} tooltip={t('monthlyLedger')}>
-            <Link href="/reports">
-              <BookText />
-              <span>{t('monthlyLedger')}</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      )}
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild isActive={pathname === '/reports'} tooltip={t('monthlyLedger')}>
+          <Link href="/reports">
+            <BookText />
+            <span>{t('monthlyLedger')}</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
 
-      {user.role === 'owner' && (
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            asChild
-            isActive={pathname === '/payments'}
-            tooltip={t('paymentTracking')}
-          >
-            <Link href="/payments">
-              <CircleDollarSign />
-              <span>{t('paymentTracking')}</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      )}
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          asChild
+          isActive={pathname === '/payments'}
+          tooltip={t('paymentTracking')}
+        >
+          <Link href="/payments">
+            <CircleDollarSign />
+            <span>{t('paymentTracking')}</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
 
-      {(user.role === 'owner' || user.role === 'supervisor') && (
-         <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname === '/settings'} tooltip={t('settings')}>
-              <Link href="/settings">
-                <Settings />
-                <span>{t('settings')}</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-      )}
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild isActive={pathname === '/settings'} tooltip={t('settings')}>
+          <Link href="/settings">
+            <Settings />
+            <span>{t('settings')}</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
     </SidebarMenu>
   );
 }

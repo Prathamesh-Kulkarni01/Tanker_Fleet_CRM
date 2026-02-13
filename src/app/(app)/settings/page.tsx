@@ -13,6 +13,8 @@ import * as z from 'zod';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 const slabSchema = z.object({
   id: z.string(),
@@ -99,52 +101,76 @@ export default function SettingsPage() {
 
   if (!user) return null;
 
-  const defaultValue = user.role === 'owner' ? 'slabs' : 'trip-types';
-  const gridCols = user.role === 'owner' ? 'sm:grid-cols-3' : 'sm:grid-cols-1';
+  if (user.role !== 'owner') {
+    return (
+      <div className="p-4 md:p-8">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Access Denied</AlertTitle>
+          <AlertDescription>
+            You do not have permission to view this page.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-8">
       <h1 className="text-2xl font-bold mb-4">{t('settings')}</h1>
-      <Tabs defaultValue={defaultValue}>
-        <TabsList className={`grid w-full max-w-md grid-cols-1 ${gridCols}`}>
-          {user.role === 'owner' && <TabsTrigger value="slabs">{t('payoutSlabs')}</TabsTrigger>}
+      <Tabs defaultValue="slabs">
+        <TabsList className={`grid w-full max-w-md grid-cols-3`}>
+          <TabsTrigger value="slabs">{t('payoutSlabs')}</TabsTrigger>
           <TabsTrigger value="trip-types">{t('tripTypes')}</TabsTrigger>
-          {user.role === 'owner' && <TabsTrigger value="month-lock">{t('monthLock')}</TabsTrigger>}
+          <TabsTrigger value="month-lock">{t('monthLock')}</TabsTrigger>
         </TabsList>
 
-        {user.role === 'owner' && (
-          <TabsContent value="slabs">
-            <Form {...slabsForm}>
-              <form onSubmit={slabsForm.handleSubmit(onSlabsSubmit)}>
-                <Card>
-                  <CardHeader>
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <CardTitle>{t('payoutSlabs')}</CardTitle>
-                        <p className="text-sm text-muted-foreground pt-1">{t('defineSlabsDescription')}</p>
-                      </div>
-                      <Button type="submit" size="sm" className="gap-1">
-                        {t('saveChanges')}
-                      </Button>
+        <TabsContent value="slabs">
+          <Form {...slabsForm}>
+            <form onSubmit={slabsForm.handleSubmit(onSlabsSubmit)}>
+              <Card>
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle>{t('payoutSlabs')}</CardTitle>
+                      <p className="text-sm text-muted-foreground pt-1">{t('defineSlabsDescription')}</p>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>{t('minimumTrips')}</TableHead>
-                          <TableHead>{t('maximumTrips')}</TableHead>
-                          <TableHead>{t('payoutAmount')}</TableHead>
-                          <TableHead className="w-[50px]"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {slabFields.map((field, index) => (
-                          <TableRow key={field.id}>
-                            <TableCell>
+                    <Button type="submit" size="sm" className="gap-1">
+                      {t('saveChanges')}
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t('minimumTrips')}</TableHead>
+                        <TableHead>{t('maximumTrips')}</TableHead>
+                        <TableHead>{t('payoutAmount')}</TableHead>
+                        <TableHead className="w-[50px]"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {slabFields.map((field, index) => (
+                        <TableRow key={field.id}>
+                          <TableCell>
+                            <FormField
+                              control={slabsForm.control}
+                              name={`slabs.${index}.min_trips`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormControl>
+                                    <Input type="number" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell>
                               <FormField
                                 control={slabsForm.control}
-                                name={`slabs.${index}.min_trips`}
+                                name={`slabs.${index}.max_trips`}
                                 render={({ field }) => (
                                   <FormItem>
                                     <FormControl>
@@ -154,65 +180,50 @@ export default function SettingsPage() {
                                   </FormItem>
                                 )}
                               />
-                            </TableCell>
-                            <TableCell>
-                                <FormField
-                                  control={slabsForm.control}
-                                  name={`slabs.${index}.max_trips`}
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormControl>
-                                        <Input type="number" {...field} />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                            </TableCell>
-                            <TableCell>
-                              <FormField
-                                control={slabsForm.control}
-                                name={`slabs.${index}.payout_amount`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormControl>
-                                      <Input type="number" placeholder="₹" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removeSlab(index)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                     <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="mt-4 gap-1"
-                        onClick={() => appendSlab({ id: `new-${slabFields.length}`, min_trips: 0, max_trips: 0, payout_amount: 0 })}
-                      >
-                        <PlusCircle className="h-3.5 w-3.5" />
-                        {t('addSlab')}
-                      </Button>
-                  </CardContent>
-                </Card>
-              </form>
-            </Form>
-          </TabsContent>
-        )}
+                          </TableCell>
+                          <TableCell>
+                            <FormField
+                              control={slabsForm.control}
+                              name={`slabs.${index}.payout_amount`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormControl>
+                                    <Input type="number" placeholder="₹" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeSlab(index)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                   <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="mt-4 gap-1"
+                      onClick={() => appendSlab({ id: `new-${slabFields.length}`, min_trips: 0, max_trips: 0, payout_amount: 0 })}
+                    >
+                      <PlusCircle className="h-3.5 w-3.5" />
+                      {t('addSlab')}
+                    </Button>
+                </CardContent>
+              </Card>
+            </form>
+          </Form>
+        </TabsContent>
 
         <TabsContent value="trip-types">
            <Form {...tripTypesForm}>
@@ -268,18 +279,16 @@ export default function SettingsPage() {
           </Form>
         </TabsContent>
         
-        {user.role === 'owner' && (
-          <TabsContent value="month-lock">
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('monthLock')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p>{t('monthLockingInterfaceWillBeHere')}</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        )}
+        <TabsContent value="month-lock">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('monthLock')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p>{t('monthLockingInterfaceWillBeHere')}</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   );

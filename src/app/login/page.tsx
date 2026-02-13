@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth';
 import { Button } from '@/components/ui/button';
@@ -14,11 +14,21 @@ import { useI18n } from '@/lib/i18n';
 export default function LoginPage() {
   const { t } = useI18n();
   const router = useRouter();
-  const { login, loading: authLoading } = useAuth();
+  const { login, user, loading: authLoading } = useAuth();
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      if (user.role === 'owner') {
+        router.replace('/dashboard');
+      } else if (user.role === 'driver') {
+        router.replace(`/drivers/${user.id}`);
+      }
+    }
+  }, [user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,9 +36,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const success = await login(phone, password);
-      if (success) {
-        router.replace('/dashboard');
-      } else {
+      if (!success) {
         setError(t('invalidCredentials'));
       }
     } catch (err) {
@@ -37,11 +45,10 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
-  
-  if (authLoading) {
-    return <div className="flex min-h-screen w-full items-center justify-center bg-background" />
-  }
 
+  if (authLoading || user) {
+    return <div className="flex min-h-screen w-full items-center justify-center bg-background" />;
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">

@@ -3,17 +3,16 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 
-// Hardcoded users for demonstration. In a real app, this would come from a database.
-const MOCK_USERS: Record<string, { id: string; name: string; role: 'owner' | 'supervisor' | 'driver'; password?: string; code?: string }> = {
+// Hardcoded users for demonstration.
+const MOCK_USERS: Record<string, { id: string; name: string; role: 'owner' | 'driver'; password?: string; ownerId?: string }> = {
   '9999999999': { id: 'owner-1', name: 'Rohan (Owner)', role: 'owner', password: 'password' },
-  '8888888888': { id: 'supervisor-1', name: 'Sameer (Supervisor)', role: 'supervisor', password: 'password' },
-  '7777777777': { id: 'd1', name: 'Rohan (Driver)', role: 'driver', code: '123456' }, // This uses a code, but login form uses password field for now
+  '7777777777': { id: 'd1', name: 'Rohan (Driver)', role: 'driver', password: 'password', ownerId: 'owner-1' },
 };
 
 type User = {
   id: string;
   name: string;
-  role: 'owner' | 'supervisor' | 'driver';
+  role: 'owner' | 'driver';
 };
 
 interface AuthContextType {
@@ -35,10 +34,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const storedUser = localStorage.getItem('tanker-user');
       if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
+        const parsedUser: User = JSON.parse(storedUser);
         setUser(parsedUser);
         if (pathname === '/login') {
-          router.replace('/dashboard');
+           if (parsedUser.role === 'owner') {
+             router.replace('/dashboard');
+           } else if (parsedUser.role === 'driver') {
+             router.replace(`/drivers/${parsedUser.id}`);
+           }
         }
       }
     } catch (e) {
@@ -51,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (phone: string, passwordOrCode: string): Promise<boolean> => {
     const mockUser = MOCK_USERS[phone];
-    if (mockUser && (mockUser.password === passwordOrCode || mockUser.code === passwordOrCode)) {
+    if (mockUser && mockUser.password === passwordOrCode) {
       const userToStore: User = { id: mockUser.id, name: mockUser.name, role: mockUser.role };
       setUser(userToStore);
       localStorage.setItem('tanker-user', JSON.stringify(userToStore));

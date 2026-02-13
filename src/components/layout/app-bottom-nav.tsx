@@ -4,22 +4,38 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
+import { useAuth } from '@/contexts/auth';
 
 export function AppBottomNav() {
   const pathname = usePathname();
   const { t } = useI18n();
+  const { user } = useAuth();
 
-  const navItems = [
-    { href: '/dashboard', label: t('dashboard'), icon: LayoutDashboard },
-    { href: '/trips', label: t('tripEntry'), icon: Truck },
-    { href: '/drivers', label: t('drivers'), icon: Users },
-    { href: '/reports', label: t('monthlyLedger'), icon: BookText },
-    { href: '/settings', label: t('settings'), icon: Settings },
-  ];
+  if (!user) return null;
+
+  const navItems =
+    user.role === 'owner'
+      ? [
+          { href: '/dashboard', label: t('dashboard'), icon: LayoutDashboard },
+          { href: '/trips', label: t('tripEntry'), icon: Truck },
+          { href: '/drivers', label: t('drivers'), icon: Users },
+          { href: '/reports', label: t('monthlyLedger'), icon: BookText },
+          { href: '/settings', label: t('settings'), icon: Settings },
+        ]
+      : [
+          {
+            href: `/drivers/${user.id}`,
+            label: t('dashboard'),
+            icon: LayoutDashboard,
+          },
+        ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/80 backdrop-blur-sm md:hidden">
-      <div className="grid h-16 grid-cols-5 items-stretch">
+      <div
+        className="grid h-16 items-stretch"
+        style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}
+      >
         {navItems.map((item) => {
           const isActive =
             (item.href === '/dashboard' && pathname === '/dashboard') ||
