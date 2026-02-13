@@ -134,15 +134,15 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
-      <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:gap-8 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <CardHeader>
             <CardTitle>Monthly Trip Overview</CardTitle>
             <CardDescription>Total trips over the last 6 months.</CardDescription>
           </CardHeader>
-          <CardContent className="p-0 pt-4">
+          <CardContent>
             <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
-              <AreaChart accessibilityLayer data={last6MonthsTrips} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+              <AreaChart accessibilityLayer data={last6MonthsTrips} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                   <defs>
                   <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="var(--color-total)" stopOpacity={0.8}/>
