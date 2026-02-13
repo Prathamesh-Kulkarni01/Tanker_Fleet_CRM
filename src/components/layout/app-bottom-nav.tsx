@@ -20,7 +20,7 @@ export function AppBottomNav() {
           { href: '/trips', label: t('tripEntry'), icon: Truck },
           { href: '/drivers', label: t('drivers'), icon: Users },
           { href: '/routes', label: t('routes'), icon: Map },
-          { href: '/reports', label: t('monthlyLedger'), icon: BookText },
+          { href: '/reports', label: t('settlements'), icon: BookText },
           { href: '/settings', label: t('settings'), icon: Settings },
         ]
       : [

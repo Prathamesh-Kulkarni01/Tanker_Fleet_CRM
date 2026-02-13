@@ -103,10 +103,10 @@ export function AppSidebarNav() {
       </SidebarMenuItem>
 
       <SidebarMenuItem>
-        <SidebarMenuButton asChild isActive={pathname === '/reports'} tooltip={t('monthlyLedger')}>
+        <SidebarMenuButton asChild isActive={pathname === '/reports'} tooltip={t('settlements')}>
           <Link href="/reports">
             <BookText />
-            <span>{t('monthlyLedger')}</span>
+            <span>{t('settlements')}</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
