@@ -19,6 +19,7 @@ import { Skeleton } from '../ui/skeleton';
 import { Route, Trip } from '@/lib/data';
 import { TruckMarker } from '../icons/truck-marker';
 import { format } from 'date-fns';
+import { useAuth } from '@/contexts/auth';
 
 const lineLayer: LineLayer = {
   id: 'route-line',
@@ -42,6 +43,7 @@ interface LiveMapProps {
 
 export function LiveMap({ trip, route }: LiveMapProps) {
   const mapRef = useRef<MapRef>(null);
+  const { user } = useAuth();
   const { position, error, speed, heading } = useGeolocation();
   const [viewState, setViewState] = useState({
     longitude: 77.5946, // Default to Bangalore
@@ -150,7 +152,9 @@ export function LiveMap({ trip, route }: LiveMapProps) {
                 <p className="text-xs text-muted-foreground">Current Route</p>
                 <p className="font-bold">{route.source} → {route.destinations.join(', ')}</p>
              </div>
-             <Button variant="destructive" size="sm">End Trip</Button>
+             {user?.role === 'driver' && (
+              <Button variant="destructive" size="sm">End Trip</Button>
+             )}
           </div>
            <div className="grid grid-cols-3 gap-2 text-center">
                 <div>

@@ -1,17 +1,18 @@
 'use client';
 import { drivers, trips, slabs, routes } from '@/lib/data';
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { PayoutInsights } from '@/components/driver/payout-insights';
 import { format } from 'date-fns';
-import { Truck, DollarSign, Award, TrendingUp, Calendar, MapPin, Phone, ShieldCheck, Banknote } from 'lucide-react';
+import { Truck, DollarSign, Award, TrendingUp, Calendar, MapPin, Phone, ShieldCheck, Banknote, Map } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/lib/i18n';
-import { ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export default function DriverPage({ params }: { params: { driverId: string } }) {
   const { t } = useI18n();
@@ -20,6 +21,10 @@ export default function DriverPage({ params }: { params: { driverId: string } })
   if (!driver) {
     notFound();
   }
+
+  const latestTrip = trips
+    .filter(t => t.driverId === driver.id)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
   const now = new Date();
   const currentMonthStr = format(now, 'yyyy-MM');
@@ -86,6 +91,19 @@ export default function DriverPage({ params }: { params: { driverId: string } })
                 </Badge>
               </div>
             </div>
+            {latestTrip && driver.is_active && (
+                <div className="flex items-center gap-4">
+                  <Map className="w-8 h-8 text-muted-foreground" />
+                  <div>
+                    <p className="text-muted-foreground">Live Location</p>
+                    <Button asChild size="sm">
+                        <Link href={`/trips/live/${latestTrip.id}`}>
+                            Track Driver
+                        </Link>
+                    </Button>
+                  </div>
+                </div>
+            )}
         </CardContent>
       </Card>
 
