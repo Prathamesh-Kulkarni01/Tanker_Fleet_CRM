@@ -56,16 +56,18 @@ export default function DriverPage({ params }: { params: { driverId: string } })
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center gap-4">
-        <Avatar className="h-20 w-20 border-2 border-primary">
-          <AvatarImage src={driver.avatar?.imageUrl} alt={driver.name} data-ai-hint={driver.avatar?.imageHint}/>
-          <AvatarFallback className="text-2xl">{driver.name.charAt(0)}</AvatarFallback>
-        </Avatar>
-        <div>
-          <h1 className="text-3xl font-bold font-headline">{driver.name}</h1>
-          <p className="text-muted-foreground">Driver Performance Dashboard</p>
-        </div>
-      </div>
+      <Card>
+        <CardContent className="p-6 md:flex md:items-center md:gap-8">
+            <Avatar className="h-24 w-24 md:h-28 md:w-28 border-4 border-primary/50 mx-auto md:mx-0">
+              <AvatarImage src={driver.avatar?.imageUrl} alt={driver.name} data-ai-hint={driver.avatar?.imageHint}/>
+              <AvatarFallback className="text-4xl">{driver.name.charAt(0)}</AvatarFallback>
+            </Avatar>
+          <div className="text-center md:text-left mt-4 md:mt-0">
+            <h1 className="text-3xl lg:text-4xl font-bold font-headline text-primary">{driver.name}</h1>
+            <p className="text-muted-foreground mt-1">Driver Performance Dashboard</p>
+          </div>
+        </CardContent>
+      </Card>
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
