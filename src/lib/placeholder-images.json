@@ -1,3 +1,34 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "driver-1",
+      "description": "Avatar for driver Rohan",
+      "imageUrl": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxtYWxlJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzcwOTAzOTg0fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "male portrait"
+    },
+    {
+      "id": "driver-2",
+      "description": "Avatar for driver Sameer",
+      "imageUrl": "https://images.unsplash.com/photo-1725866546799-4cc16f6cba23?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxtYW4lMjBzbWlsaW5nfGVufDB8fHx8MTc3MDg5Nzk2MXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "man smiling"
+    },
+    {
+      "id": "driver-3",
+      "description": "Avatar for driver Vijay",
+      "imageUrl": "https://images.unsplash.com/photo-1626526804650-7118ac691b7a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxwZXJzb24lMjBmYWNlfGVufDB8fHx8MTc3MDg5NzcxNHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person face"
+    },
+    {
+      "id": "driver-4",
+      "description": "Avatar for driver Anil",
+      "imageUrl": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxtYWxlJTIwcHJvZmlsZXxlbnwwfHx8fDE3NzA5OTc0Njl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "male profile"
+    },
+    {
+      "id": "driver-5",
+      "description": "Avatar for driver Sunil",
+      "imageUrl": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxtYW4lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NzA5NjUwNjZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "man portrait"
+    }
+  ]
 }
