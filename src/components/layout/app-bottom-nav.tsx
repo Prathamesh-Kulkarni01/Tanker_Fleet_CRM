@@ -45,7 +45,7 @@ export function AppBottomNav() {
           return (
             <Link
               key={item.href}
-              href={item.href === '/drivers' ? '/drivers/d1' : item.href}
+              href={item.href}
               className={cn(
                 'flex flex-col items-center justify-center gap-1 p-1 text-muted-foreground transition-colors hover:text-primary',
                 isActive && 'text-primary'

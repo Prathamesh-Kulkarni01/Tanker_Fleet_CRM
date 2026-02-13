@@ -58,6 +58,7 @@ export default function TripsPage() {
   };
   
   const activeRoutes = routes.filter(r => r.is_active);
+  const activeDrivers = drivers.filter(d => d.is_active);
 
   return (
     <div className="p-4 md:p-8 flex justify-center">
@@ -82,7 +83,7 @@ export default function TripsPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {drivers.map((driver) => (
+                        {activeDrivers.map((driver) => (
                           <SelectItem key={driver.id} value={driver.id}>
                             {driver.name}
                           </SelectItem>

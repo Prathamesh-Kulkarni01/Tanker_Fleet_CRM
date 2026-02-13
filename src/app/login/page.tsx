@@ -35,9 +35,9 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const success = await login(phone, password);
-      if (!success) {
-        setError(t('invalidCredentials'));
+      const result = await login(phone, password);
+      if (!result.success) {
+        setError(result.error || t('invalidCredentials'));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : t('anErrorOccurred'));

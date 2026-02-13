@@ -6,9 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { PayoutInsights } from '@/components/driver/payout-insights';
 import { format } from 'date-fns';
-import { Truck, DollarSign, Award, TrendingUp, Calendar, MapPin } from 'lucide-react';
+import { Truck, DollarSign, Award, TrendingUp, Calendar, MapPin, Phone, ShieldCheck, Banknote } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/lib/i18n';
 
 export default function DriverPage({ params }: { params: { driverId: string } }) {
@@ -55,6 +56,36 @@ export default function DriverPage({ params }: { params: { driverId: string } })
         <h1 className="mt-4 text-3xl font-bold font-headline sm:text-4xl">{driver.name}</h1>
         <p className="text-muted-foreground">{t('driverPerformanceOverview')}</p>
       </div>
+
+      <Card>
+        <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="flex items-center gap-4">
+              <Phone className="w-8 h-8 text-muted-foreground" />
+              <div>
+                <p className="text-muted-foreground">{t('phoneNumber')}</p>
+                <p className="font-bold text-lg">{driver.phone}</p>
+              </div>
+            </div>
+             <div className="flex items-center gap-4">
+              <ShieldCheck className="w-8 h-8 text-muted-foreground" />
+              <div>
+                <p className="text-muted-foreground">{t('status')}</p>
+                <Badge variant={driver.is_active ? 'secondary' : 'outline'}>
+                    {driver.is_active ? t('active') : t('inactive')}
+                </Badge>
+              </div>
+            </div>
+             <div className="flex items-center gap-4">
+              <Banknote className="w-8 h-8 text-muted-foreground" />
+              <div>
+                <p className="text-muted-foreground">{t('paymentStatus')}</p>
+                 <Badge variant='outline'>
+                    {t('unpaid')}
+                </Badge>
+              </div>
+            </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="p-4">

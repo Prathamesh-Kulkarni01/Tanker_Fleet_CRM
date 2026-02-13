@@ -1,9 +1,13 @@
+'use client';
 import type { ImagePlaceholder } from './placeholder-images';
 import { PlaceHolderImages } from './placeholder-images';
 
 export type Driver = {
   id: string;
+  ownerId: string;
   name: string;
+  phone: string;
+  is_active: boolean;
   avatar: ImagePlaceholder | undefined;
 };
 
@@ -37,11 +41,11 @@ export type MonthlySummary = {
 };
 
 export const drivers: Driver[] = [
-  { id: 'd1', name: 'Rohan', avatar: PlaceHolderImages.find(img => img.id === 'driver-1') },
-  { id: 'd2', name: 'Sameer', avatar: PlaceHolderImages.find(img => img.id === 'driver-2') },
-  { id: 'd3', name: 'Vijay', avatar: PlaceHolderImages.find(img => img.id === 'driver-3') },
-  { id: 'd4', name: 'Anil', avatar: PlaceHolderImages.find(img => img.id === 'driver-4') },
-  { id: 'd5', name: 'Sunil', avatar: PlaceHolderImages.find(img => img.id === 'driver-5') },
+  { id: 'd1', ownerId: 'owner-1', name: 'Rohan', phone: '7777777777', is_active: true, avatar: PlaceHolderImages.find(img => img.id === 'driver-1') },
+  { id: 'd2', ownerId: 'owner-1', name: 'Sameer', phone: '7777777778', is_active: true, avatar: PlaceHolderImages.find(img => img.id === 'driver-2') },
+  { id: 'd3', ownerId: 'owner-1', name: 'Vijay', phone: '7777777779', is_active: true, avatar: PlaceHolderImages.find(img => img.id === 'driver-3') },
+  { id: 'd4', ownerId: 'owner-1', name: 'Anil', phone: '7777777780', is_active: false, avatar: PlaceHolderImages.find(img => img.id === 'driver-4') },
+  { id: 'd5', ownerId: 'owner-1', name: 'Sunil', phone: '7777777781', is_active: true, avatar: PlaceHolderImages.find(img => img.id === 'driver-5') },
 ];
 
 export const slabs: Slab[] = [

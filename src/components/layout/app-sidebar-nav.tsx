@@ -75,13 +75,13 @@ export function AppSidebarNav() {
           isActive={pathname.startsWith('/drivers')}
           tooltip={t('driverInsights')}
         >
-          <Link href={'/drivers/d1'}>
+          <Link href={'/drivers'}>
             <Users />
-            <span>{t('driverInsights')}</span>
+            <span>{t('drivers')}</span>
           </Link>
         </SidebarMenuButton>
         <SidebarMenuSub>
-          {drivers.map((driver) => (
+          {drivers.filter(d => d.is_active).map((driver) => (
             <SidebarMenuSubItem key={driver.id}>
               <SidebarMenuSubButton asChild isActive={pathname === `/drivers/${driver.id}`}>
                 <Link href={`/drivers/${driver.id}`}>
