@@ -43,7 +43,7 @@ export default function ReportsPage() {
         return {
           ...trip,
           driverName: driver?.name || 'Unknown Driver',
-          routeName: route ? `${route.place_a} to ${route.place_b}` : 'Unknown Route',
+          routeName: route ? `${route.source} → ${route.destinations.join(', ')}` : 'Unknown Route',
           dateObj: parseISO(trip.date)
         }
       })
@@ -138,7 +138,7 @@ export default function ReportsPage() {
               <SelectItem value="all">{t('allRoutes')}</SelectItem>
               {routes.map(route => (
                 <SelectItem key={route.id} value={route.id}>
-                    {route.place_a} to {route.place_b}
+                    {route.source} → {route.destinations.join(', ')}
                 </SelectItem>
               ))}
             </SelectContent>

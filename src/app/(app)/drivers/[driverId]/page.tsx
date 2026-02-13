@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/lib/i18n';
+import { ArrowRight } from 'lucide-react';
 
 export default function DriverPage({ params }: { params: { driverId: string } }) {
   const { t } = useI18n();
@@ -40,7 +41,7 @@ export default function DriverPage({ params }: { params: { driverId: string } })
 
   const getRouteName = (routeId: string) => {
     const route = routes.find(r => r.id === routeId);
-    return route ? `${route.place_a} to ${route.place_b}` : 'Unknown Route';
+    return route ? `${route.source} → ${route.destinations.join(', ')}` : 'Unknown Route';
   }
 
   return (

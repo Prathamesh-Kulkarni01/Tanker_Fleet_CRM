@@ -13,8 +13,8 @@ export type Driver = {
 
 export type Route = {
   id: string;
-  place_a: string;
-  place_b: string;
+  source: string;
+  destinations: string[];
   rate_per_trip: number;
   is_active: boolean;
 };
@@ -57,10 +57,10 @@ export const slabs: Slab[] = [
 ];
 
 export const routes: Route[] = [
-    { id: 'r1', place_a: 'Warehouse', place_b: 'Corporate Park', rate_per_trip: 500, is_active: true },
-    { id: 'r2', place_a: 'City Center', place_b: 'Residential Complex', rate_per_trip: 450, is_active: true },
-    { id: 'r3', place_a: 'Port', place_b: 'Industrial Zone', rate_per_trip: 600, is_active: true },
-    { id: 'r4', place_a: 'Market', place_b: 'Old City', rate_per_trip: 400, is_active: false },
+    { id: 'r1', source: 'Main Plant', destinations: ['Corporate Park', 'Tech Tower'], rate_per_trip: 500, is_active: true },
+    { id: 'r2', source: 'City Reservoir', destinations: ['Residential Complex A', 'Residential Complex B', 'Downtown Market'], rate_per_trip: 450, is_active: true },
+    { id: 'r3', source: 'Main Plant', destinations: ['Industrial Zone', 'Port Warehouse'], rate_per_trip: 600, is_active: true },
+    { id: 'r4', source: 'Old Well', destinations: ['Old City', 'Heritage Village'], rate_per_trip: 400, is_active: false },
 ];
 
 
