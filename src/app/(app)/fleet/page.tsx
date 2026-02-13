@@ -25,7 +25,7 @@ export default function FleetPage() {
   }
 
   return (
-    <div className="h-full w-full -m-4 sm:-mx-6 md:-m-8">
+    <div className="flex-1 -m-4 sm:-mx-6 md:-m-8">
       <FleetMap />
     </div>
   );
