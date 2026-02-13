@@ -12,40 +12,33 @@ import {
   Truck,
   BookText,
   CircleDollarSign,
-  Sparkles,
   Settings,
   Users,
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { drivers } from '@/lib/data';
+import { useI18n } from '@/lib/i18n';
 
 export function AppSidebarNav() {
   const pathname = usePathname();
+  const { t } = useI18n();
 
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <SidebarMenuButton
-          asChild
-          isActive={pathname === '/dashboard'}
-          tooltip="Dashboard"
-        >
+        <SidebarMenuButton asChild isActive={pathname === '/dashboard'} tooltip={t('dashboard')}>
           <Link href="/dashboard">
             <LayoutDashboard />
-            <span>Dashboard</span>
+            <span>{t('dashboard')}</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
       <SidebarMenuItem>
-        <SidebarMenuButton
-          asChild
-          isActive={pathname === '/trips'}
-          tooltip="Trip Entry"
-        >
+        <SidebarMenuButton asChild isActive={pathname === '/trips'} tooltip={t('tripEntry')}>
           <Link href="/trips">
             <Truck />
-            <span>Trip Entry</span>
+            <span>{t('tripEntry')}</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -53,37 +46,30 @@ export function AppSidebarNav() {
         <SidebarMenuButton
           asChild
           isActive={pathname.startsWith('/drivers')}
-          tooltip="Drivers"
+          tooltip={t('driverInsights')}
         >
           <Link href="/drivers/d1">
-             <Users />
-            <span>Driver Insights</span>
+            <Users />
+            <span>{t('driverInsights')}</span>
           </Link>
         </SidebarMenuButton>
-         <SidebarMenuSub>
-           {drivers.map((driver) => (
-             <SidebarMenuSubItem key={driver.id}>
-               <SidebarMenuSubButton
-                asChild
-                isActive={pathname === `/drivers/${driver.id}`}
-              >
+        <SidebarMenuSub>
+          {drivers.map((driver) => (
+            <SidebarMenuSubItem key={driver.id}>
+              <SidebarMenuSubButton asChild isActive={pathname === `/drivers/${driver.id}`}>
                 <Link href={`/drivers/${driver.id}`}>
                   <span>{driver.name}</span>
                 </Link>
               </SidebarMenuSubButton>
             </SidebarMenuSubItem>
-           ))}
+          ))}
         </SidebarMenuSub>
       </SidebarMenuItem>
       <SidebarMenuItem>
-        <SidebarMenuButton
-          asChild
-          isActive={pathname === '/reports'}
-          tooltip="Monthly Ledger"
-        >
+        <SidebarMenuButton asChild isActive={pathname === '/reports'} tooltip={t('monthlyLedger')}>
           <Link href="/reports">
             <BookText />
-            <span>Monthly Ledger</span>
+            <span>{t('monthlyLedger')}</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -91,23 +77,19 @@ export function AppSidebarNav() {
         <SidebarMenuButton
           asChild
           isActive={pathname === '/payments'}
-          tooltip="Payment Tracking"
+          tooltip={t('paymentTracking')}
         >
           <Link href="/payments">
             <CircleDollarSign />
-            <span>Payment Tracking</span>
+            <span>{t('paymentTracking')}</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
       <SidebarMenuItem>
-        <SidebarMenuButton
-          asChild
-          isActive={pathname === '/settings'}
-          tooltip="Settings"
-        >
+        <SidebarMenuButton asChild isActive={pathname === '/settings'} tooltip={t('settings')}>
           <Link href="/settings">
             <Settings />
-            <span>Settings</span>
+            <span>{t('settings')}</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>

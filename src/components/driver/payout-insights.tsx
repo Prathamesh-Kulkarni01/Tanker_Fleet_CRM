@@ -7,8 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { AlertCircle, CheckCircle2, ListChecks, Sparkles } from 'lucide-react';
+import { useI18n } from '@/lib/i18n';
 
 export function PayoutInsights({ driverId }: { driverId: string }) {
+  const { t } = useI18n();
   const [insights, setInsights] = useState<DriverPayoutInsightsOutput | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,15 +43,15 @@ export function PayoutInsights({ driverId }: { driverId: string }) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Sparkles className="text-accent" />
-            AI Payout Insights
+            {t('aiPayoutInsights')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
+            <AlertTitle>{t('error')}</AlertTitle>
             <AlertDescription>
-              Could not load AI insights. {error}
+              {t('couldNotLoadInsights', { error: error })}
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -66,16 +68,16 @@ export function PayoutInsights({ driverId }: { driverId: string }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-primary">
           <Sparkles />
-          AI Payout Insights
+          {t('aiPayoutInsights')}
         </CardTitle>
         <CardDescription>{insights.progressToNextSlab}</CardDescription>
       </CardHeader>
       <CardContent>
         {insights.aiInsights && insights.aiInsights.length > 0 ? (
           <div className="space-y-3">
-             <h3 className="font-semibold text-foreground flex items-center gap-2">
-                <ListChecks className="w-5 h-5" />
-                Suggestions to Increase Your Payout:
+            <h3 className="font-semibold text-foreground flex items-center gap-2">
+              <ListChecks className="w-5 h-5" />
+              {t('suggestionsToIncreasePayout')}
             </h3>
             <ul className="space-y-2 list-inside">
               {insights.aiInsights.map((insight, index) => (
@@ -95,12 +97,13 @@ export function PayoutInsights({ driverId }: { driverId: string }) {
 }
 
 function PayoutInsightsSkeleton() {
+  const { t } = useI18n();
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-primary">
           <Sparkles />
-          AI Payout Insights
+          {t('aiPayoutInsights')}
         </CardTitle>
         <Skeleton className="h-4 w-3/4" />
       </CardHeader>
