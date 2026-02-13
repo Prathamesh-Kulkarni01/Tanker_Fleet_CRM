@@ -33,7 +33,6 @@ export function AppHeader() {
   const userAvatar = PlaceHolderImages.find(p => p.id === 'driver-1');
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
-      <SidebarTrigger className="sm:hidden" />
       
       <div className="flex-1">
         {/* Can add breadcrumbs here */}
