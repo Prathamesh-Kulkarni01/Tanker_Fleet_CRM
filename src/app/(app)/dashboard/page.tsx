@@ -1,21 +1,14 @@
 'use client';
 
 import {
-  Activity,
   ArrowUpRight,
-  CircleUser,
-  CreditCard,
   DollarSign,
-  Menu,
-  Package2,
-  Search,
   Users,
   Truck,
 } from "lucide-react"
 import {
   AreaChart,
   Area,
-  ResponsiveContainer,
   XAxis,
   YAxis,
   Tooltip,
@@ -23,7 +16,6 @@ import {
 } from "recharts"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -43,7 +35,7 @@ import {
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart"
 import { drivers, trips, slabs } from "@/lib/data"
 import Link from "next/link"
-import { format, subMonths, getMonth, getYear } from 'date-fns';
+import { format, subMonths } from 'date-fns';
 
 export default function Dashboard() {
   const now = new Date();
@@ -148,20 +140,20 @@ export default function Dashboard() {
             <CardTitle>Monthly Trip Overview</CardTitle>
             <CardDescription>Total trips over the last 6 months.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
-              <AreaChart data={last6MonthsTrips} margin={{ top: 20, right: 20, bottom: 5, left: 0 }}>
+          <CardContent className="pl-2 pt-4">
+            <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
+              <AreaChart accessibilityLayer data={last6MonthsTrips} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                   <defs>
                   <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="var(--color-total)" stopOpacity={0.8}/>
                     <stop offset="95%" stopColor="var(--color-total)" stopOpacity={0.1}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                <CartesianGrid vertical={false} />
                 <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
-                <YAxis tickLine={false} axisLine={false} tickMargin={10} />
-                <Tooltip cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
-                <Area type="monotone" dataKey="total" strokeWidth={2} stroke="var(--color-total)" fill="url(#colorTotal)" />
+                <YAxis tickLine={false} axisLine={false} tickMargin={10} width={80} />
+                <Tooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                <Area type="natural" dataKey="total" strokeWidth={2} stroke="var(--color-total)" fill="url(#colorTotal)" fillOpacity={0.4} stackId="a" />
               </AreaChart>
             </ChartContainer>
           </CardContent>
