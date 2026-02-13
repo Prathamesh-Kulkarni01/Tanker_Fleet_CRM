@@ -6,10 +6,8 @@ import Map, {
   Source,
   Layer,
   MapRef,
-  NavigationControl,
-  GeolocateControl,
-} from 'react-map-gl';
-import type { LineLayer, LngLatLike } from 'mapbox-gl';
+} from 'react-map-gl/maplibre';
+import type { LineLayer, LngLatLike } from 'maplibre-gl';
 
 import { useGeolocation } from '@/hooks/use-geolocation';
 import { Card, CardContent } from '@/components/ui/card';
@@ -120,7 +118,6 @@ export function LiveMap({ trip, route }: LiveMapProps) {
         onDragStart={() => setAutoFollow(false)}
         style={{ width: '100%', height: '100%' }}
         mapStyle="https://demotiles.maplibre.org/style.json"
-        mapLib={import('maplibre-gl')}
       >
         {/* Driver Marker */}
         <Marker

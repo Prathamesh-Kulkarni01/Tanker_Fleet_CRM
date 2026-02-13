@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +33,13 @@ export default function TripsPage() {
   const { t } = useI18n();
   const { toast } = useToast();
   const [recentTrips, setRecentTrips] = useState<any[]>([]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('recentTrips');
+    if (saved) {
+      setRecentTrips(JSON.parse(saved));
+    }
+  }, []);
 
   const tripFormSchema = z.object({
     driverId: z.string().min(1, t('driverRequired')),
@@ -79,7 +86,12 @@ export default function TripsPage() {
         driverName: driver?.name,
         routeName: route ? `${route.source} → ${route.destinations.join(', ')}` : 'Unknown Route',
     };
-    setRecentTrips(prev => [newTrip, ...prev].slice(0,5)); // Keep last 5
+    
+    setRecentTrips(prev => {
+        const updatedRecentTrips = [newTrip, ...prev].slice(0,5);
+        localStorage.setItem('recentTrips', JSON.stringify(updatedRecentTrips));
+        return updatedRecentTrips;
+    });
 
     toast({
       title: t('tripsSaved'),
