@@ -140,9 +140,9 @@ export default function Dashboard() {
             <CardTitle>Monthly Trip Overview</CardTitle>
             <CardDescription>Total trips over the last 6 months.</CardDescription>
           </CardHeader>
-          <CardContent className="pl-2 pt-4">
+          <CardContent className="p-0 pt-4">
             <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
-              <AreaChart accessibilityLayer data={last6MonthsTrips} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <AreaChart accessibilityLayer data={last6MonthsTrips} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
                   <defs>
                   <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="var(--color-total)" stopOpacity={0.8}/>
@@ -151,7 +151,7 @@ export default function Dashboard() {
                 </defs>
                 <CartesianGrid vertical={false} />
                 <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
-                <YAxis tickLine={false} axisLine={false} tickMargin={10} width={80} />
+                <YAxis tickLine={false} axisLine={false} tickMargin={10} />
                 <Tooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
                 <Area type="natural" dataKey="total" strokeWidth={2} stroke="var(--color-total)" fill="url(#colorTotal)" fillOpacity={0.4} stackId="a" />
               </AreaChart>
