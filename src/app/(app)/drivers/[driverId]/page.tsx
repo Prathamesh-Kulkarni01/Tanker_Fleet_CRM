@@ -133,17 +133,17 @@ export default function DriverPage({ params }: { params: { driverId: string } })
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
-                <TableHead className="text-center">ABC Trips</TableHead>
-                <TableHead className="text-center">XYZ Trips</TableHead>
+                <TableHead className="text-center hidden sm:table-cell">ABC Trips</TableHead>
+                <TableHead className="text-center hidden sm:table-cell">XYZ Trips</TableHead>
                 <TableHead className="text-right">Daily Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {Object.entries(dailyTrips).sort(([dateA], [dateB]) => dateB.localeCompare(dateA)).map(([date, counts]) => (
                 <TableRow key={date}>
-                  <TableCell className="font-medium">{format(new Date(date), 'MMMM dd, yyyy')}</TableCell>
-                  <TableCell className="text-center">{counts.abc}</TableCell>
-                  <TableCell className="text-center">{counts.xyz}</TableCell>
+                  <TableCell className="font-medium">{format(new Date(date), 'MMM d, yyyy')}</TableCell>
+                  <TableCell className="text-center hidden sm:table-cell">{counts.abc}</TableCell>
+                  <TableCell className="text-center hidden sm:table-cell">{counts.xyz}</TableCell>
                   <TableCell className="text-right font-semibold">{counts.abc + counts.xyz}</TableCell>
                 </TableRow>
               ))}

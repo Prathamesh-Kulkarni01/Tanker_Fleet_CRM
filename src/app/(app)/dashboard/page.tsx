@@ -99,120 +99,118 @@ export default function Dashboard() {
 
 
   return (
-    <div className="flex min-h-screen w-full flex-col">
-      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-        <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Payout (This Month)
-              </CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">₹{totalPayoutThisMonth.toLocaleString('en-IN')}</div>
-              <p className="text-xs text-muted-foreground">
-                Based on current trip counts
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Trips (This Month)
-              </CardTitle>
-              <Truck className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">+{totalTripsThisMonth}</div>
-              <p className="text-xs text-muted-foreground">
-                Across all drivers
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Drivers</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalDrivers}</div>
-              <p className="text-xs text-muted-foreground">
-                Currently in the system
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-        <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
-          <Card className="xl:col-span-2">
-            <CardHeader>
-              <CardTitle>Monthly Trip Overview</CardTitle>
-              <CardDescription>Total trips over the last 6 months.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
-                <AreaChart data={last6MonthsTrips} margin={{ top: 20, right: 20, bottom: 5, left: 0 }}>
-                   <defs>
-                    <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--color-total)" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="var(--color-total)" stopOpacity={0.1}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
-                  <YAxis tickLine={false} axisLine={false} tickMargin={10} />
-                  <Tooltip cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
-                  <Area type="monotone" dataKey="total" strokeWidth={2} stroke="var(--color-total)" fill="url(#colorTotal)" />
-                </AreaChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center">
-               <div className="grid gap-2">
-                <CardTitle>Recent Driver Activity</CardTitle>
-                <CardDescription>
-                  Current monthly summary for top drivers.
-                </CardDescription>
-              </div>
-              <Button asChild size="sm" className="ml-auto gap-1">
-                <Link href="/reports">
-                  View All
-                  <ArrowUpRight className="h-4 w-4" />
-                </Link>
-              </Button>
-            </CardHeader>
-            <CardContent>
-               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Driver</TableHead>
-                    <TableHead className="text-right">Trips</TableHead>
-                    <TableHead className="text-right">Est. Payout</TableHead>
+    <div className="flex flex-col gap-4 md:gap-8">
+      <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Total Payout (This Month)
+            </CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">₹{totalPayoutThisMonth.toLocaleString('en-IN')}</div>
+            <p className="text-xs text-muted-foreground">
+              Based on current trip counts
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Total Trips (This Month)
+            </CardTitle>
+            <Truck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">+{totalTripsThisMonth}</div>
+            <p className="text-xs text-muted-foreground">
+              Across all drivers
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Drivers</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalDrivers}</div>
+            <p className="text-xs text-muted-foreground">
+              Currently in the system
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+      <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
+        <Card className="xl:col-span-2">
+          <CardHeader>
+            <CardTitle>Monthly Trip Overview</CardTitle>
+            <CardDescription>Total trips over the last 6 months.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
+              <AreaChart data={last6MonthsTrips} margin={{ top: 20, right: 20, bottom: 5, left: 0 }}>
+                  <defs>
+                  <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--color-total)" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="var(--color-total)" stopOpacity={0.1}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
+                <YAxis tickLine={false} axisLine={false} tickMargin={10} />
+                <Tooltip cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
+                <Area type="monotone" dataKey="total" strokeWidth={2} stroke="var(--color-total)" fill="url(#colorTotal)" />
+              </AreaChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center">
+              <div className="grid gap-2">
+              <CardTitle>Recent Driver Activity</CardTitle>
+              <CardDescription>
+                Current monthly summary for top drivers.
+              </CardDescription>
+            </div>
+            <Button asChild size="sm" className="ml-auto gap-1">
+              <Link href="/reports">
+                View All
+                <ArrowUpRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+              <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Driver</TableHead>
+                  <TableHead className="text-right hidden sm:table-cell">Trips</TableHead>
+                  <TableHead className="text-right">Est. Payout</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recentDriversActivity.map(driver => (
+                  <TableRow key={driver.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="hidden h-9 w-9 sm:flex">
+                          <AvatarImage src={driver.avatar?.imageUrl} alt="Avatar" data-ai-hint={driver.avatar?.imageHint} />
+                          <AvatarFallback>{driver.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                          <div className="font-medium">{driver.name}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right hidden sm:table-cell">{driver.totalTrips}</TableCell>
+                    <TableCell className="text-right">₹{driver.payout.toLocaleString('en-IN')}</TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentDriversActivity.map(driver => (
-                    <TableRow key={driver.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="hidden h-9 w-9 sm:flex">
-                            <AvatarImage src={driver.avatar?.imageUrl} alt="Avatar" data-ai-hint={driver.avatar?.imageHint} />
-                            <AvatarFallback>{driver.name.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                           <div className="font-medium">{driver.name}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">{driver.totalTrips}</TableCell>
-                      <TableCell className="text-right">₹{driver.payout.toLocaleString('en-IN')}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </div>
-      </main>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
