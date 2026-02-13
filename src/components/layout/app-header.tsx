@@ -1,7 +1,6 @@
 'use client';
 
-import { Globe, Moon, Sun } from 'lucide-react';
-
+import { Globe, Moon, Sun, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -12,14 +11,18 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import Image from 'next/image';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useI18n } from '@/lib/i18n';
 import { useTheme } from '../theme-provider';
+import { useAuth } from '@/contexts/auth';
+import Link from 'next/link';
 
 export function AppHeader() {
-  const userAvatar = PlaceHolderImages.find((p) => p.id === 'driver-1');
   const { setLanguage, t } = useI18n();
   const { setTheme } = useTheme();
+  const { user, logout } = useAuth();
+
+  const userAvatar =
+    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxtYWxlJTIwcHJvZmlsZXxlbnwwfHx8fDE3NzA5OTc0Njl8MA&ixlib=rb-4.1.0&q=80&w=1080';
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
@@ -60,7 +63,7 @@ export function AppHeader() {
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="icon" className="overflow-hidden rounded-full">
             <Image
-              src={userAvatar?.imageUrl || 'https://picsum.photos/seed/header/36/36'}
+              src={userAvatar}
               width={36}
               height={36}
               alt="Avatar"
@@ -70,12 +73,17 @@ export function AppHeader() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuLabel>{t('myAccount')}</DropdownMenuLabel>
+          <DropdownMenuLabel>{user?.name || t('myAccount')}</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem>{t('settings')}</DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href="/settings">{t('settings')}</Link>
+          </DropdownMenuItem>
           <DropdownMenuItem>{t('support')}</DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem>{t('logout')}</DropdownMenuItem>
+          <DropdownMenuItem onClick={logout}>
+            <LogOut className="mr-2 h-4 w-4" />
+            <span>{t('logout')}</span>
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </header>

@@ -3,6 +3,7 @@ import React, { useState, useEffect, ReactNode, useCallback } from 'react';
 import { I18nContext, type Language } from '@/lib/i18n';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from './theme-provider';
+import { AuthProvider } from '@/contexts/auth';
 
 const translationsCache: Partial<Record<Language, Record<string, string>>> = {};
 
@@ -27,8 +28,6 @@ function I18nProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const loadTranslations = async (lang: Language) => {
-      // This line was causing the UI to disappear during language change.
-      // setIsLoaded(false); 
       if (translationsCache[lang]) {
         setTranslations(translationsCache[lang]!);
         if (!isLoaded) setIsLoaded(true);
@@ -46,7 +45,6 @@ function I18nProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error(error);
         if (lang !== 'en') {
-          // Fallback to English if the selected language file fails to load
           await loadTranslations('en');
         }
       } finally {
@@ -74,7 +72,6 @@ function I18nProvider({ children }: { children: ReactNode }) {
   }, [translations]);
 
   if (!isLoaded) {
-    // Render a blank screen or a minimal loader to avoid flash of untranslated content
     return null;
   }
 
@@ -88,10 +85,12 @@ function I18nProvider({ children }: { children: ReactNode }) {
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider defaultTheme="system" storageKey="tanker-ledger-theme">
-      <I18nProvider>
-        {children}
-        <Toaster />
-      </I18nProvider>
+      <AuthProvider>
+        <I18nProvider>
+          {children}
+          <Toaster />
+        </I18nProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }
