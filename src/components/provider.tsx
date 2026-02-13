@@ -26,10 +26,11 @@ function I18nProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const loadTranslations = async (lang: Language) => {
-      setIsLoaded(false);
+      // This line was causing the UI to disappear during language change.
+      // setIsLoaded(false); 
       if (translationsCache[lang]) {
         setTranslations(translationsCache[lang]!);
-        setIsLoaded(true);
+        if (!isLoaded) setIsLoaded(true);
         return;
       }
 
@@ -44,21 +45,22 @@ function I18nProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error(error);
         if (lang !== 'en') {
+          // Fallback to English if the selected language file fails to load
           await loadTranslations('en');
         }
       } finally {
-        setIsLoaded(true);
+        if (!isLoaded) setIsLoaded(true);
       }
     };
     
     loadTranslations(language);
-  }, [language]);
+  }, [language, isLoaded]);
 
-  const handleSetLanguage = (lang: Language) => {
+  const handleSetLanguage = useCallback((lang: Language) => {
     setLanguage(lang);
     localStorage.setItem('language', lang);
     document.documentElement.lang = lang;
-  };
+  }, []);
   
   const t = useCallback((key: string, replacements?: Record<string, string | number>): string => {
     let translation = translations[key] || key;
