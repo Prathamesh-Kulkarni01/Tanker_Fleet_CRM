@@ -1,4 +1,3 @@
-
 'use client';
 import { useState } from 'react';
 import {
@@ -39,7 +38,7 @@ import * as z from 'zod';
 import { useI18n } from '@/lib/i18n';
 import { useToast } from '@/hooks/use-toast';
 import { routes as initialRoutes, trips, Route } from '@/lib/data';
-import { Plus, Edit, Trash2, ArrowRight } from 'lucide-react';
+import { Plus, Edit, Trash2, ArrowRight, MapPin } from 'lucide-react';
 import { useAuth } from '@/contexts/auth';
 import { Alert, AlertTitle, AlertDescription as AlertDescriptionComponent } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
@@ -148,6 +147,7 @@ export default function RoutesPage() {
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <CardTitle className="flex items-start gap-2 flex-wrap">
+                    <MapPin className="h-5 w-5 text-primary shrink-0 mt-1" />
                     <span className="font-semibold">{route.source}</span>
                     <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
                     <span className="text-muted-foreground font-normal">{route.destinations.join(', ')}</span>
