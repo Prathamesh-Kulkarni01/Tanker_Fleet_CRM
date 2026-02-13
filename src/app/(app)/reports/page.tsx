@@ -30,14 +30,19 @@ import type { DateRange } from 'react-day-picker';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
 
 export default function ReportsPage() {
   const { t } = useI18n();
+  const { toast } = useToast();
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [driverIdFilter, setDriverIdFilter] = useState<string>('all');
   const [routeId, setRouteId] = useState<string>('all');
   const [deductions, setDeductions] = useState<Record<string, number>>({});
+  const [paidAmounts, setPaidAmounts] = useState<Record<string, number>>({});
+  const [paymentInputs, setPaymentInputs] = useState<Record<string, string>>({});
 
   const filteredTrips = useMemo(() => {
     return trips
@@ -59,15 +64,33 @@ export default function ReportsPage() {
   }, [dateRange, driverIdFilter, routeId]);
 
   const handleDeductionChange = (driverId: string, value: string) => {
-    setDeductions(prev => ({
-        ...prev,
-        [driverId]: Number(value) || 0
-    }));
+    setDeductions(prev => ({ ...prev, [driverId]: Number(value) || 0 }));
   };
+
+  const handlePaymentInputChange = (driverId: string, value: string) => {
+      setPaymentInputs(prev => ({...prev, [driverId]: value}));
+  }
+
+  const handleRecordPayment = (driverId: string, payableAmount: number) => {
+      const amount = Number(paymentInputs[driverId]) || 0;
+      if (amount <= 0) return;
+
+      const currentPaid = paidAmounts[driverId] || 0;
+      const newPaidAmount = Math.min(currentPaid + amount, payableAmount);
+
+      setPaidAmounts(prev => ({...prev, [driverId]: newPaidAmount }));
+      setPaymentInputs(prev => ({ ...prev, [driverId]: '' }));
+      toast({ title: t('paymentRecorded') });
+  };
+  
+  const handleMarkAsPaid = (driverId: string, payableAmount: number) => {
+      setPaidAmounts(prev => ({...prev, [driverId]: payableAmount }));
+      toast({ title: t('paymentRecorded') });
+  }
 
   const settlementData = useMemo(() => {
     if (filteredTrips.length === 0) {
-      return { driverSettlements: [], totalRevenue: 0, totalPayout: 0, totalDeductions: 0, totalPayable: 0, totalTrips: 0 };
+      return { driverSettlements: [], totalRevenue: 0, totalDeductions: 0, totalPaid: 0, netPayable: 0, totalTrips: 0 };
     }
 
     const tripsByDriver = filteredTrips.reduce<Record<string, any[]>>((acc, trip) => {
@@ -102,24 +125,27 @@ export default function ReportsPage() {
     }).filter(item => !!item.driver);
 
     const grandTotalDeductions = Object.values(deductions).reduce((acc, val) => acc + val, 0);
-    const grandTotalPayable = grandTotalRevenue - grandTotalDeductions;
+    const grandTotalPaid = Object.values(paidAmounts).reduce((acc, val) => acc + val, 0);
+    const grandNetPayable = grandTotalRevenue - grandTotalDeductions - grandTotalPaid;
 
     return { 
         driverSettlements, 
         totalRevenue: grandTotalRevenue, 
-        totalPayout: grandTotalRevenue, // 100% model
         totalDeductions: grandTotalDeductions, 
-        totalPayable: grandTotalPayable,
+        totalPaid: grandTotalPaid,
+        netPayable: grandNetPayable,
         totalTrips: grandTotalTrips
     };
-  }, [filteredTrips, deductions]);
+  }, [filteredTrips, deductions, paidAmounts]);
   
-  const { driverSettlements, totalRevenue, totalPayout, totalDeductions, totalPayable, totalTrips } = settlementData;
+  const { driverSettlements, totalRevenue, totalDeductions, totalPaid, netPayable, totalTrips } = settlementData;
 
   const clearFilters = () => {
     setDateRange(undefined);
     setDriverIdFilter('all');
     setRouteId('all');
+    setDeductions({});
+    setPaidAmounts({});
   };
 
   return (
@@ -196,8 +222,8 @@ export default function ReportsPage() {
              <div className="flex items-center gap-4 rounded-lg bg-green-500/10 p-4">
                 <div className="rounded-full bg-green-500/20 p-3 text-green-600"><Banknote /></div>
                 <div>
-                    <p className="text-sm text-green-700">{t('totalPayable')}</p>
-                    <p className="text-2xl font-bold text-green-600">₹{totalPayable.toLocaleString('en-IN')}</p>
+                    <p className="text-sm text-green-700">{t('netPayable')}</p>
+                    <p className="text-2xl font-bold text-green-600">₹{netPayable.toLocaleString('en-IN')}</p>
                 </div>
             </div>
         </CardContent>
@@ -209,18 +235,34 @@ export default function ReportsPage() {
             <Accordion type="single" collapsible className="w-full space-y-4">
             {driverSettlements.map(({ driver, trips, totalTrips, totalEarnings }) => {
                 const driverDeduction = deductions[driver!.id] || 0;
-                const payableAmount = totalEarnings - driverDeduction;
+                const payableAfterDeduction = totalEarnings - driverDeduction;
+                const driverPaidAmount = paidAmounts[driver!.id] || 0;
+                const netPayableForDriver = payableAfterDeduction - driverPaidAmount;
+
+                let status: 'Paid' | 'Partially Paid' | 'Pending' = 'Pending';
+                let statusClass = 'bg-yellow-500/10 text-yellow-700 border-yellow-500/20';
+                if (payableAfterDeduction > 0 && driverPaidAmount >= payableAfterDeduction) {
+                    status = 'Paid';
+                    statusClass = 'bg-green-500/10 text-green-700 border-green-500/20';
+                } else if (driverPaidAmount > 0) {
+                    status = 'Partially Paid';
+                    statusClass = 'bg-blue-500/10 text-blue-700 border-blue-500/20';
+                }
+
                 return (
                 <AccordionItem value={driver!.id} key={driver!.id} className="border-0">
                     <Card className="shadow-md">
                         <AccordionTrigger className="p-4 hover:no-underline [&[data-state=open]>svg]:rotate-180">
-                           <div className="w-full grid gap-4 sm:grid-cols-2 md:grid-cols-5 items-center text-left">
-                                <div className="flex items-center gap-3 col-span-2 md:col-span-1">
+                           <div className="w-full grid gap-4 grid-cols-2 md:grid-cols-6 items-center text-left">
+                                <div className="flex items-center gap-3 col-span-2 md:col-span-2">
                                     <Avatar>
                                         <AvatarImage src={driver!.avatar?.imageUrl} alt={driver!.name} />
                                         <AvatarFallback>{driver!.name.charAt(0)}</AvatarFallback>
                                     </Avatar>
-                                    <span className="font-bold">{driver!.name}</span>
+                                    <div>
+                                      <span className="font-bold">{driver!.name}</span>
+                                      <Badge className={cn('mt-1', statusClass)}>{t(status.toLowerCase().replace(' ', ''))}</Badge>
+                                    </div>
                                 </div>
                                 <div className="text-sm">
                                     <p className="text-muted-foreground">{t('trips')}</p>
@@ -236,14 +278,14 @@ export default function ReportsPage() {
                                 </div>
                                 <div className="text-sm">
                                     <p className="text-muted-foreground">{t('payable')}</p>
-                                    <p className="font-bold text-green-600 text-base">₹{payableAmount.toLocaleString('en-IN')}</p>
+                                    <p className="font-bold text-green-600 text-base">₹{payableAfterDeduction.toLocaleString('en-IN')}</p>
                                 </div>
                            </div>
                         </AccordionTrigger>
                         <AccordionContent>
-                           <div className="border-t p-4 space-y-4">
-                               <div className="grid sm:grid-cols-3 gap-4">
-                                    <div>
+                           <div className="border-t p-4 space-y-6">
+                                <div className="grid sm:grid-cols-2 gap-x-8 gap-y-4">
+                                     <div>
                                         <Label htmlFor={`deduction-${driver!.id}`}>{t('addDeduction')}</Label>
                                         <Input 
                                             id={`deduction-${driver!.id}`} 
@@ -253,6 +295,21 @@ export default function ReportsPage() {
                                             onChange={(e) => handleDeductionChange(driver!.id, e.target.value)}
                                             onClick={(e) => e.stopPropagation()}
                                         />
+                                    </div>
+                                    <div>
+                                      <Label htmlFor={`payment-${driver!.id}`}>{t('recordPayment')}</Label>
+                                       <div className="flex gap-2">
+                                          <Input
+                                            id={`payment-${driver!.id}`}
+                                            type="number"
+                                            placeholder={t('amountPaid')}
+                                            value={paymentInputs[driver!.id] || ''}
+                                            onChange={(e) => handlePaymentInputChange(driver!.id, e.target.value)}
+                                            onClick={(e) => e.stopPropagation()}
+                                          />
+                                          <Button variant="secondary" onClick={(e) => { e.stopPropagation(); handleRecordPayment(driver!.id, payableAfterDeduction)}}>{t('recordPayment')}</Button>
+                                       </div>
+                                       <Button size="sm" variant="link" className="pl-0" onClick={(e) => {e.stopPropagation(); handleMarkAsPaid(driver!.id, payableAfterDeduction)}}>{t('markAsPaid')}</Button>
                                     </div>
                                </div>
                                 <Table>
@@ -283,7 +340,19 @@ export default function ReportsPage() {
                                     <TableFooter>
                                         <TableRow>
                                             <TableCell colSpan={4} className="text-right font-bold">{t('totalEarnings')}</TableCell>
-                                            <TableCell className="text-right font-bold text-lg">₹{totalEarnings.toLocaleString('en-IN')}</TableCell>
+                                            <TableCell className="text-right font-bold">₹{totalEarnings.toLocaleString('en-IN')}</TableCell>
+                                        </TableRow>
+                                        <TableRow>
+                                            <TableCell colSpan={4} className="text-right font-bold">{t('deductions')}</TableCell>
+                                            <TableCell className="text-right font-bold text-destructive">- ₹{driverDeduction.toLocaleString('en-IN')}</TableCell>
+                                        </TableRow>
+                                         <TableRow>
+                                            <TableCell colSpan={4} className="text-right font-bold">{t('paidAmount')}</TableCell>
+                                            <TableCell className="text-right font-bold text-blue-600">- ₹{driverPaidAmount.toLocaleString('en-IN')}</TableCell>
+                                        </TableRow>
+                                        <TableRow className="text-lg">
+                                            <TableCell colSpan={4} className="text-right font-bold">{t('netPayable')}</TableCell>
+                                            <TableCell className="text-right font-bold text-green-600">₹{netPayableForDriver.toLocaleString('en-IN')}</TableCell>
                                         </TableRow>
                                     </TableFooter>
                                 </Table>

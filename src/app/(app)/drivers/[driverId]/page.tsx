@@ -82,7 +82,7 @@ export default function DriverPage({ params }: { params: { driverId: string } })
               <div>
                 <p className="text-muted-foreground">{t('paymentStatus')}</p>
                  <Badge variant='outline'>
-                    {t('unpaid')}
+                    {t('pending')}
                 </Badge>
               </div>
             </div>

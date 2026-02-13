@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   Truck,
   BookText,
-  CircleDollarSign,
   Settings,
   Users,
   Map,
@@ -107,19 +106,6 @@ export function AppSidebarNav() {
           <Link href="/reports">
             <BookText />
             <span>{t('settlements')}</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-
-      <SidebarMenuItem>
-        <SidebarMenuButton
-          asChild
-          isActive={pathname === '/payments'}
-          tooltip={t('paymentTracking')}
-        >
-          <Link href="/payments">
-            <CircleDollarSign />
-            <span>{t('paymentTracking')}</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
