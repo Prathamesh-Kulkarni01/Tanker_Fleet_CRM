@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { drivers } from '@/lib/data';
+import { drivers, tripTypes } from '@/lib/data';
 import { useI18n } from '@/lib/i18n';
 
 export default function TripsPage() {
@@ -46,13 +46,16 @@ export default function TripsPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="trip-type">{t('tripType')}</Label>
-                <Select defaultValue="ABC">
+                <Select defaultValue={tripTypes[0]?.name || ''}>
                   <SelectTrigger id="trip-type">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ABC">ABC</SelectItem>
-                    <SelectItem value="XYZ">XYZ</SelectItem>
+                    {tripTypes.map((type) => (
+                      <SelectItem key={type.id} value={type.name}>
+                        {type.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

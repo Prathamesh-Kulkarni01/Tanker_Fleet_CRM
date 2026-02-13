@@ -1,5 +1,5 @@
 'use client';
-import { drivers, trips, slabs } from '@/lib/data';
+import { drivers, trips, slabs, tripTypes } from '@/lib/data';
 import { notFound } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,13 +41,13 @@ export default function DriverPage({ params }: { params: { driverId: string } })
     (acc, trip) => {
       const day = trip.date;
       if (!acc[day]) {
-        acc[day] = { abc: 0, xyz: 0 };
+        acc[day] = { total: 0, counts: {} };
       }
-      if (trip.tripType === 'ABC') acc[day].abc += trip.count;
-      if (trip.tripType === 'XYZ') acc[day].xyz += trip.count;
+      acc[day].counts[trip.tripType] = (acc[day].counts[trip.tripType] || 0) + trip.count;
+      acc[day].total += trip.count;
       return acc;
     },
-    {} as Record<string, { abc: number; xyz: number }>
+    {} as Record<string, { total: number; counts: Record<string, number> }>
   );
 
   return (
@@ -141,23 +141,25 @@ export default function DriverPage({ params }: { params: { driverId: string } })
             <TableHeader>
               <TableRow>
                 <TableHead>{t('date')}</TableHead>
-                <TableHead className="text-center hidden sm:table-cell">ABC Trips</TableHead>
-                <TableHead className="text-center hidden sm:table-cell">XYZ Trips</TableHead>
+                {tripTypes.map(tt => (
+                    <TableHead key={tt.id} className="text-center hidden sm:table-cell">{tt.name} Trips</TableHead>
+                ))}
                 <TableHead className="text-right">{t('dailyTotal')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {Object.entries(dailyTrips)
                 .sort(([dateA], [dateB]) => dateB.localeCompare(dateA))
-                .map(([date, counts]) => (
+                .map(([date, data]) => (
                   <TableRow key={date}>
                     <TableCell className="font-medium">
                       {format(new Date(date), 'MMM d, yyyy')}
                     </TableCell>
-                    <TableCell className="text-center hidden sm:table-cell">{counts.abc}</TableCell>
-                    <TableCell className="text-center hidden sm:table-cell">{counts.xyz}</TableCell>
+                     {tripTypes.map(tt => (
+                        <TableCell key={tt.id} className="text-center hidden sm:table-cell">{data.counts[tt.name] || 0}</TableCell>
+                    ))}
                     <TableCell className="text-right font-semibold">
-                      {counts.abc + counts.xyz}
+                      {data.total}
                     </TableCell>
                   </TableRow>
                 ))}

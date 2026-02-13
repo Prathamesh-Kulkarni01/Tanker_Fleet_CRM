@@ -11,7 +11,7 @@ export type Trip = {
   id: string;
   driverId: string;
   date: string; // "YYYY-MM-DD"
-  tripType: 'ABC' | 'XYZ';
+  tripType: string;
   count: number;
 };
 
@@ -29,6 +29,11 @@ export type MonthlySummary = {
   payout: number;
 };
 
+export type TripTypeData = {
+  id: string;
+  name: string;
+};
+
 export const drivers: Driver[] = [
   { id: 'd1', name: 'Rohan', avatar: PlaceHolderImages.find(img => img.id === 'driver-1') },
   { id: 'd2', name: 'Sameer', avatar: PlaceHolderImages.find(img => img.id === 'driver-2') },
@@ -42,6 +47,11 @@ export const slabs: Slab[] = [
   { id: 's2', min_trips: 50, max_trips: 99, payout_amount: 50000 },
   { id: 's3', min_trips: 100, max_trips: 149, payout_amount: 100000 },
   { id: 's4', min_trips: 150, max_trips: 9999, payout_amount: 150000 },
+];
+
+export const tripTypes: TripTypeData[] = [
+  { id: 'tt1', name: 'ABC' },
+  { id: 'tt2', name: 'XYZ' },
 ];
 
 // Generate dynamic trip data for the last few months
