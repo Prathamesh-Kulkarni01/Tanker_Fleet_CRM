@@ -8,15 +8,15 @@ import {
 import { Button } from '@/components/ui/button';
 import { AppSidebarNav } from './app-sidebar-nav';
 import { Separator } from '@/components/ui/separator';
-import { FrameIcon } from 'lucide-react';
+import { Truck } from 'lucide-react';
 
 export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader>
         <Button variant="ghost" className="h-10 w-full justify-start px-2 text-primary-foreground hover:text-primary-foreground">
-          <FrameIcon className="h-7 w-7 mr-2" />
-          <span className="text-lg font-bold font-headline">Tanker Ledger</span>
+          <Truck className="h-7 w-7 mr-2" />
+          <span className="text-lg font-headline"><span className="font-bold">Tanker</span>Ledger</span>
         </Button>
       </SidebarHeader>
 

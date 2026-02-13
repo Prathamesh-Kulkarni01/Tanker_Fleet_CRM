@@ -13,8 +13,8 @@ import {
   Truck,
 } from "lucide-react"
 import {
-  Bar,
-  BarChart,
+  AreaChart,
+  Area,
   ResponsiveContainer,
   XAxis,
   YAxis,
@@ -151,13 +151,19 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
-                <BarChart data={last6MonthsTrips} margin={{ top: 20, right: 20, bottom: 5, left: 0 }}>
-                  <CartesianGrid vertical={false} />
+                <AreaChart data={last6MonthsTrips} margin={{ top: 20, right: 20, bottom: 5, left: 0 }}>
+                   <defs>
+                    <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--color-total)" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="var(--color-total)" stopOpacity={0.1}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
                   <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
                   <YAxis tickLine={false} axisLine={false} tickMargin={10} />
-                  <Tooltip cursor={false} content={<ChartTooltipContent />} />
-                  <Bar dataKey="total" fill="var(--color-total)" radius={8} />
-                </BarChart>
+                  <Tooltip cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
+                  <Area type="monotone" dataKey="total" strokeWidth={2} stroke="var(--color-total)" fill="url(#colorTotal)" />
+                </AreaChart>
               </ChartContainer>
             </CardContent>
           </Card>

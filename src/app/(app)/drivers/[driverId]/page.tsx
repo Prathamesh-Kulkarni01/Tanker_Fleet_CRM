@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { PayoutInsights } from '@/components/driver/payout-insights';
 import { format, startOfMonth } from 'date-fns';
-import { Truck, DollarSign, Target, Calendar } from 'lucide-react';
+import { Truck, DollarSign, Target, Calendar, Award, TrendingUp } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Separator } from '@/components/ui/separator';
 
 
 export default function DriverPage({ params }: { params: { driverId: string } }) {
@@ -25,7 +26,6 @@ export default function DriverPage({ params }: { params: { driverId: string } })
 
   const now = new Date();
   const currentMonthStr = format(now, 'yyyy-MM');
-  const monthStartDate = startOfMonth(now);
 
   const currentMonthTrips = trips.filter(
     t => t.driverId === driver.id && t.date.startsWith(currentMonthStr)
@@ -55,63 +55,68 @@ export default function DriverPage({ params }: { params: { driverId: string } })
   }, {} as Record<string, {abc: number, xyz: number}>);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      <div className="flex flex-col items-center text-center">
+        <Avatar className="h-32 w-32 border-4 border-primary/20 shadow-lg">
+          <AvatarImage src={driver.avatar?.imageUrl} alt={driver.name} data-ai-hint={driver.avatar?.imageHint} />
+          <AvatarFallback className="text-5xl">{driver.name.charAt(0)}</AvatarFallback>
+        </Avatar>
+        <h1 className="text-4xl font-bold font-headline mt-4">{driver.name}</h1>
+        <p className="text-muted-foreground">Driver Performance Overview</p>
+      </div>
+
       <Card>
-        <CardContent className="p-6 md:flex md:items-center md:gap-8">
-            <Avatar className="h-24 w-24 md:h-28 md:w-28 border-4 border-primary/50 mx-auto md:mx-0">
-              <AvatarImage src={driver.avatar?.imageUrl} alt={driver.name} data-ai-hint={driver.avatar?.imageHint}/>
-              <AvatarFallback className="text-4xl">{driver.name.charAt(0)}</AvatarFallback>
-            </Avatar>
-          <div className="text-center md:text-left mt-4 md:mt-0">
-            <h1 className="text-3xl lg:text-4xl font-bold font-headline text-primary">{driver.name}</h1>
-            <p className="text-muted-foreground mt-1">Driver Performance Dashboard</p>
-          </div>
+        <CardContent className="p-4">
+          <ul className="space-y-4">
+            <li className="flex items-center gap-4">
+              <Truck className="w-8 h-8 text-primary" />
+              <div>
+                <p className="text-muted-foreground">Current Month Trips</p>
+                <p className="font-bold text-lg">{totalTrips}</p>
+              </div>
+            </li>
+            <Separator />
+             <li className="flex items-center gap-4">
+              <DollarSign className="w-8 h-8 text-green-500" />
+              <div>
+                <p className="text-muted-foreground">Estimated Payout</p>
+                <p className="font-bold text-lg">₹{estimatedPayout.toLocaleString('en-IN')}</p>
+              </div>
+            </li>
+             <Separator />
+             <li className="flex items-center gap-4">
+              <Award className="w-8 h-8 text-amber-500" />
+              <div>
+                <p className="text-muted-foreground">Current Slab</p>
+                <p className="font-bold text-lg">{currentSlab ? `${currentSlab.min_trips} - ${currentSlab.max_trips} trips` : "No slab yet"}</p>
+              </div>
+            </li>
+          </ul>
         </CardContent>
       </Card>
-      
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+
+      {nextSlab && (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Current Month Trips</CardTitle>
-            <Truck className="h-4 w-4 text-muted-foreground" />
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="text-primary"/>
+              Next Payout Slab
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalTrips}</div>
-            <p className="text-xs text-muted-foreground">For {format(now, 'MMMM yyyy')}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Estimated Payout</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">₹{estimatedPayout.toLocaleString('en-IN')}</div>
-             <p className="text-xs text-muted-foreground">
-                {currentSlab ? `Slab: ${currentSlab.min_trips} - ${currentSlab.max_trips} trips` : "No slab yet"}
+            <div className="flex justify-between items-center mb-1">
+              <p className="text-muted-foreground">
+                Need <span className="font-bold text-foreground">{nextSlab.min_trips - totalTrips}</span> more trips
+              </p>
+              <p className="font-bold text-primary text-lg">₹{nextSlab.payout_amount.toLocaleString('en-IN')}</p>
+            </div>
+            <Progress value={progressToNextSlab} />
+             <p className="text-xs text-muted-foreground mt-2 text-right">
+                Target: {nextSlab.min_trips} trips
             </p>
           </CardContent>
         </Card>
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Progress to Next Slab</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-             {nextSlab ? (
-                <>
-                    <div className="text-2xl font-bold">{nextSlab.min_trips - totalTrips} trips to go</div>
-                    <p className="text-xs text-muted-foreground">
-                        To reach the ₹{nextSlab.payout_amount.toLocaleString('en-IN')} payout slab
-                    </p>
-                </>
-            ) : (
-                <div className="text-2xl font-bold">Highest slab reached!</div>
-            )}
-            <Progress value={progressToNextSlab} className="mt-2" />
-          </CardContent>
-        </Card>
-      </div>
+      )}
 
       <PayoutInsights driverId={params.driverId} />
       
