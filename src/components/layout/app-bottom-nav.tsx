@@ -1,5 +1,5 @@
 'use client';
-import { LayoutDashboard, Truck, Users, BookText, Settings, Map } from 'lucide-react';
+import { LayoutDashboard, Users, BookText, Settings, Map, Compass } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -17,7 +17,7 @@ export function AppBottomNav() {
     user.role === 'owner'
       ? [
           { href: '/dashboard', label: t('dashboard'), icon: LayoutDashboard },
-          { href: '/trips', label: t('tripEntry'), icon: Truck },
+          { href: '/fleet', label: t('fleet'), icon: Compass },
           { href: '/drivers', label: t('drivers'), icon: Users },
           { href: '/routes', label: t('routes'), icon: Map },
           { href: '/reports', label: t('settlements'), icon: BookText },

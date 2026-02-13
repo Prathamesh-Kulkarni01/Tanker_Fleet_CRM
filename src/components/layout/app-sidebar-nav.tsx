@@ -14,6 +14,7 @@ import {
   Settings,
   Users,
   Map,
+  Compass,
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -55,6 +56,15 @@ export function AppSidebarNav() {
           <Link href="/dashboard">
             <LayoutDashboard />
             <span>{t('dashboard')}</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild isActive={pathname === '/fleet'} tooltip={t('fleet')}>
+          <Link href="/fleet">
+            <Compass />
+            <span>{t('fleet')}</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>

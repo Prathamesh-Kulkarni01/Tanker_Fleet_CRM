@@ -1,6 +1,6 @@
 'use client';
 
-import { DollarSign, Users, Truck, Map, TrendingUp, BarChart } from 'lucide-react';
+import { DollarSign, Users, Truck, Map, TrendingUp, BarChart, Compass } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Bar, ComposedChart, Legend } from 'recharts';
 
 import {
@@ -13,6 +13,8 @@ import {
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { drivers, trips, routes } from '@/lib/data';
 import { format, eachDayOfInterval, startOfMonth, endOfMonth } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 import { useI18n } from '@/lib/i18n';
 
 export default function DashboardPage() {
@@ -137,6 +139,21 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="w-full bg-primary/5 border-primary/20">
+        <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+                <CardTitle className="flex items-center gap-2 text-primary"><Compass /> {t('liveFleetView')}</CardTitle>
+                <CardDescription className="mt-1">{t('seeAllDriversOnMap')}</CardDescription>
+            </div>
+            <Button asChild size="sm" className="w-full md:w-auto">
+                <Link href="/fleet">
+                    {t('openLiveMap')}
+                </Link>
+            </Button>
+        </CardHeader>
+      </Card>
+      
       <div className="grid grid-cols-1 gap-4 md:gap-8 xl:grid-cols-2">
         <Card>
           <CardHeader>
