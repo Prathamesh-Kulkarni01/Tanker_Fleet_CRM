@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,22 +10,38 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { drivers, routes } from '@/lib/data';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { drivers, routes, Trip } from '@/lib/data';
 import { useI18n } from '@/lib/i18n';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
 
 export default function TripsPage() {
   const { t } = useI18n();
   const { toast } = useToast();
+  const [recentTrips, setRecentTrips] = useState<any[]>([]);
 
   const tripFormSchema = z.object({
     driverId: z.string().min(1, t('driverRequired')),
     date: z.string().min(1, t('dateRequired')).refine(
-        (date) => new Date(date) <= new Date(),
+        (date) => {
+            const selectedDate = new Date(date);
+            const today = new Date();
+            selectedDate.setHours(0,0,0,0);
+            today.setHours(0,0,0,0);
+            return selectedDate <= today;
+        },
         { message: t('dateCannotBeFuture') }
     ),
     routeId: z.string().min(1, t('routeRequired')),
@@ -45,23 +62,34 @@ export default function TripsPage() {
     defaultValues,
     mode: 'onChange',
   });
-
-  const onSubmit = (data: TripFormValues) => {
-    console.log('New trip data:', data);
-    // In a real app, this would be sent to a server action to be stored in a database.
-    // For now, we simulate success and reset the form.
-    toast({
-      title: t('tripsSaved'),
-      description: t('tripsForDriverSaved', { driverName: drivers.find(d => d.id === data.driverId)?.name || '' }),
-    });
-    form.reset(defaultValues);
-  };
   
   const activeRoutes = routes.filter(r => r.is_active);
   const activeDrivers = drivers.filter(d => d.is_active);
 
+  const onSubmit = (data: TripFormValues) => {
+    const driver = activeDrivers.find(d => d.id === data.driverId);
+    const route = activeRoutes.find(r => r.id === data.routeId);
+
+    // This is a simulation. In a real app, you'd get a proper ID from the DB.
+    const newTrip = {
+        ...data,
+        id: `trip-${Date.now()}`,
+        driverName: driver?.name,
+        routeName: route?.name,
+    };
+    setRecentTrips(prev => [newTrip, ...prev].slice(0,5)); // Keep last 5
+
+    toast({
+      title: t('tripsSaved'),
+      description: t('tripsForDriverSaved', { driverName: driver?.name || '' }),
+    });
+    form.reset(defaultValues);
+     // Keep focus on driver select for faster logging
+    form.setFocus('driverId');
+  };
+
   return (
-    <div className="p-4 md:p-8 flex justify-center">
+    <div className="p-4 md:p-8 flex flex-col items-center gap-6">
       <Card className="w-full max-w-lg">
         <CardHeader>
           <CardTitle>{t('logNewTrips')}</CardTitle>
@@ -137,7 +165,7 @@ export default function TripsPage() {
                   name="tripCount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('numberOfTrips')}</FormLabel>
+                      <FormLabel>{t('tripCount')}</FormLabel>
                       <FormControl>
                         <Input type="number" placeholder={t('eg5')} {...field} />
                       </FormControl>
@@ -147,12 +175,44 @@ export default function TripsPage() {
                 />
               </div>
               <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? t('saving') : t('saveTrips')}
+                {form.formState.isSubmitting ? t('saving') : t('saveAndLogAnother')}
               </Button>
             </form>
           </Form>
         </CardContent>
       </Card>
+
+      {recentTrips.length > 0 && (
+          <Card className="w-full max-w-lg">
+              <CardHeader>
+                  <CardTitle>{t('recentTripsLogged')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                   <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>{t('driver')}</TableHead>
+                                <TableHead>{t('route')}</TableHead>
+                                <TableHead className="text-right">{t('trips')}</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {recentTrips.map((trip) => (
+                                <TableRow key={trip.id}>
+                                    <TableCell>
+                                        <div className="font-medium">{trip.driverName}</div>
+                                        <div className="text-xs text-muted-foreground">{format(new Date(trip.date), 'MMM d, yyyy')}</div>
+                                    </TableCell>
+                                    <TableCell>{trip.routeName}</TableCell>
+                                    <TableCell className="text-right font-semibold">{trip.tripCount}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                   </Table>
+              </CardContent>
+          </Card>
+      )}
+
     </div>
   );
 }

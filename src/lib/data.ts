@@ -56,10 +56,10 @@ export const slabs: Slab[] = [
 ];
 
 export const routes: Route[] = [
-  { id: 'r1', name: 'Corporate Park', rate_per_trip: 500, is_active: true },
-  { id: 'r2', name: 'Residential Complex', rate_per_trip: 450, is_active: true },
-  { id: 'r3', name: 'Industrial Zone', rate_per_trip: 600, is_active: true },
-  { id: 'r4', name: 'Old City Route', rate_per_trip: 400, is_active: false },
+  { id: 'r1', name: 'Warehouse to Corporate Park', rate_per_trip: 500, is_active: true },
+  { id: 'r2', name: 'City Center to Residential Complex', rate_per_trip: 450, is_active: true },
+  { id: 'r3', name: 'Port to Industrial Zone', rate_per_trip: 600, is_active: true },
+  { id: 'r4', name: 'Market to Old City', rate_per_trip: 400, is_active: false },
 ];
 
 
@@ -77,6 +77,9 @@ const generateTripsForMonth = (year: number, month: number): Trip[] => {
   if (activeRoutes.length === 0) return [];
 
   drivers.forEach(driver => {
+    // Only generate trips for active drivers
+    if (!driver.is_active) return;
+    
     for (let day = 1; day <= daysInMonth; day++) {
       // Simulate some days off
       if (Math.random() > 0.85) continue;
