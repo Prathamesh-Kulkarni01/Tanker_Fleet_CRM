@@ -61,7 +61,7 @@ export default function DriverPage({ params }: { params: { driverId: string } })
           <AvatarImage src={driver.avatar?.imageUrl} alt={driver.name} data-ai-hint={driver.avatar?.imageHint} />
           <AvatarFallback className="text-5xl">{driver.name.charAt(0)}</AvatarFallback>
         </Avatar>
-        <h1 className="text-4xl font-bold font-headline mt-4">{driver.name}</h1>
+        <h1 className="mt-4 text-3xl font-bold font-headline sm:text-4xl">{driver.name}</h1>
         <p className="text-muted-foreground">Driver Performance Overview</p>
       </div>
 

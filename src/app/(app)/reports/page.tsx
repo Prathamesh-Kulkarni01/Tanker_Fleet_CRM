@@ -17,7 +17,7 @@ export default function ReportsPage() {
 
   return (
     <div className="p-4 md:p-8">
-      <h1 className="text-3xl font-bold mb-6 font-headline">Monthly Ledger: Rohan (July 2024)</h1>
+      <h1 className="text-2xl font-bold mb-6 font-headline sm:text-3xl">Monthly Ledger: Rohan (July 2024)</h1>
       <Card className="shadow-lg">
         <CardContent className="p-0">
           <div className="overflow-auto">

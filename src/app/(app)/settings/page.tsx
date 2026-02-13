@@ -18,7 +18,7 @@ export default function SettingsPage() {
     <div className="p-4 md:p-8">
       <h1 className="text-2xl font-bold mb-4">Settings</h1>
       <Tabs defaultValue="slabs">
-        <TabsList className="grid w-full grid-cols-3 max-w-md">
+        <TabsList className="grid w-full max-w-md grid-cols-1 sm:grid-cols-3">
           <TabsTrigger value="slabs">Payout Slabs</TabsTrigger>
           <TabsTrigger value="trip-types">Trip Types</TabsTrigger>
           <TabsTrigger value="month-lock">Month Lock</TabsTrigger>
