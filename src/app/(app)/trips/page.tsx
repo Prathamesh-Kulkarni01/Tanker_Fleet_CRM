@@ -26,6 +26,8 @@ import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import Link from 'next/link';
+import { Map } from 'lucide-react';
 
 export default function TripsPage() {
   const { t } = useI18n();
@@ -194,6 +196,7 @@ export default function TripsPage() {
                                 <TableHead>{t('driver')}</TableHead>
                                 <TableHead>{t('route')}</TableHead>
                                 <TableHead className="text-right">{t('trips')}</TableHead>
+                                <TableHead className="text-right"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -205,6 +208,14 @@ export default function TripsPage() {
                                     </TableCell>
                                     <TableCell>{trip.routeName}</TableCell>
                                     <TableCell className="text-right font-semibold">{trip.tripCount}</TableCell>
+                                    <TableCell className="text-right">
+                                        <Button asChild variant="outline" size="sm">
+                                            <Link href={`/trips/live/${trip.id}`}>
+                                                <Map className="mr-2 h-4 w-4" />
+                                                Track
+                                            </Link>
+                                        </Button>
+                                    </TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
