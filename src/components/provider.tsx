@@ -2,6 +2,7 @@
 import React, { useState, useEffect, ReactNode, useCallback } from 'react';
 import { I18nContext, type Language } from '@/lib/i18n';
 import { Toaster } from '@/components/ui/toaster';
+import { ThemeProvider } from './theme-provider';
 
 const translationsCache: Partial<Record<Language, Record<string, string>>> = {};
 
@@ -86,9 +87,11 @@ function I18nProvider({ children }: { children: ReactNode }) {
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
-    <I18nProvider>
-      {children}
-      <Toaster />
-    </I18nProvider>
+    <ThemeProvider defaultTheme="system" storageKey="tanker-ledger-theme">
+      <I18nProvider>
+        {children}
+        <Toaster />
+      </I18nProvider>
+    </ThemeProvider>
   );
 }
