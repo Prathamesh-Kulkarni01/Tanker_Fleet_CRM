@@ -31,12 +31,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useI18n } from '@/lib/i18n';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, ArrowRight, MapPin, AlertCircle, LocateFixed, X } from 'lucide-react';
+import { Plus, Edit, Trash2, ArrowRight, MapPin, AlertCircle, LocateFixed, X, ArrowDown, ArrowUp, GripVertical } from 'lucide-react';
 import { useAuth } from '@/contexts/auth';
 import { Alert, AlertTitle, AlertDescription as AlertDescriptionComponent } from '@/components/ui/alert';
 import { useFirestore } from '@/firebase';
@@ -51,16 +51,18 @@ import { Form, FormControl, FormField, FormItem, FormMessage } from '@/component
 
 
 const routeSchema = z.object({
-  source: z.string().min(1, { message: 'Source name is required.' }),
-  destinations: z.array(
-      z.object({
-          name: z.string().min(1, { message: 'Destination name is required.' }),
-      })
-  ).min(1, 'At least one destination is required.'),
   rate_per_trip: z.coerce.number().positive({ message: 'Rate must be a positive number.' }),
 });
 
 type RouteFormValues = z.infer<typeof routeSchema>;
+
+interface LocationPoint {
+  name: string;
+  coords: {
+    latitude: number;
+    longitude: number;
+  };
+}
 
 const osmStyle: MapStyle = {
   version: 8,
@@ -90,11 +92,10 @@ export default function RoutesPage() {
   const firestore = useFirestore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
+  
+  const [source, setSource] = useState<LocationPoint | null>(null);
+  const [destinations, setDestinations] = useState<LocationPoint[]>([]);
 
-  // State for map interactions
-  const [activeFieldIndex, setActiveFieldIndex] = useState<'source' | number | null>('source');
-  const [sourceCoords, setSourceCoords] = useState<{latitude: number, longitude: number} | null>(null);
-  const [destCoords, setDestCoords] = useState<{latitude: number, longitude: number}[]>([]);
   const mapRef = useRef<MapRef>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -116,50 +117,28 @@ export default function RoutesPage() {
   const form = useForm<RouteFormValues>({
     resolver: zodResolver(routeSchema),
     defaultValues: {
-        source: '',
-        destinations: [{ name: '' }],
         rate_per_trip: 0,
     }
   });
-
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: "destinations"
-  });
   
   const resetMapState = () => {
-      setSourceCoords(null);
-      setDestCoords([]);
-      setActiveFieldIndex('source');
+      setSource(null);
+      setDestinations([]);
   }
 
   const handleAddRoute = () => {
     setEditingRoute(null);
     resetMapState();
-    form.reset({ source: '', destinations: [{ name: '' }], rate_per_trip: 0 });
+    form.reset({ rate_per_trip: 0 });
     setIsDialogOpen(true);
   };
 
   const handleEditRoute = (route: Route) => {
     setEditingRoute(route);
-    setSourceCoords(route.sourceCoords);
-    setDestCoords(route.destCoords || []);
-    form.reset({ 
-        source: route.source, 
-        destinations: route.destinations.map(name => ({ name })),
-        rate_per_trip: route.rate_per_trip 
-    });
-    setActiveFieldIndex(null);
+    setSource({ name: route.source, coords: route.sourceCoords });
+    setDestinations(route.destinations.map((name, i) => ({ name, coords: route.destCoords[i] })));
+    form.reset({ rate_per_trip: route.rate_per_trip });
     setIsDialogOpen(true);
-  };
-
-  const handleRemoveDestination = (index: number) => {
-    remove(index);
-    setDestCoords(prev => {
-        const newCoords = [...prev];
-        newCoords.splice(index, 1);
-        return newCoords;
-    });
   };
 
   const handleDeactivateRoute = async (routeId: string) => {
@@ -183,25 +162,21 @@ export default function RoutesPage() {
   const onSubmit = async (data: RouteFormValues) => {
     if (!firestore || !user) return;
     
-    if (!sourceCoords) {
-        toast({ variant: 'destructive', title: 'Missing Location', description: 'Please select a source location on the map.' });
+    if (!source) {
+        toast({ variant: 'destructive', title: 'Missing Source', description: 'Please select a source location.' });
         return;
     }
-    
-    if (data.destinations.length !== destCoords.length) {
-        toast({
-            variant: 'destructive',
-            title: 'Mismatched Destinations',
-            description: `You have ${data.destinations.length} destination fields but have placed ${destCoords.length} pins on the map. Please ensure they match.`,
-        });
+    if (destinations.length === 0) {
+        toast({ variant: 'destructive', title: 'Missing Destination', description: 'Please select at least one destination.' });
         return;
     }
 
     const routeData = {
-        ...data,
-        destinations: data.destinations.map(d => d.name),
-        sourceCoords,
-        destCoords,
+        source: source.name,
+        destinations: destinations.map(d => d.name),
+        sourceCoords: source.coords,
+        destCoords: destinations.map(d => d.coords),
+        rate_per_trip: data.rate_per_trip,
     };
 
     try {
@@ -230,25 +205,6 @@ export default function RoutesPage() {
         });
     }
   };
-
-  const handleMapClick = (e: mapboxgl.MapLayerMouseEvent) => {
-      const { lng, lat } = e.lngLat;
-      if (activeFieldIndex === 'source') {
-          setSourceCoords({ latitude: lat, longitude: lng });
-      } else if (typeof activeFieldIndex === 'number') {
-          setDestCoords(prev => {
-              const newCoords = [...prev];
-              newCoords[activeFieldIndex] = { latitude: lat, longitude: lng };
-              return newCoords;
-          });
-      } else {
-          toast({
-              variant: 'destructive',
-              title: "Select a Field First",
-              description: "Click on a source or destination field before placing a pin on the map.",
-          })
-      }
-  }
 
   // Fetch location suggestions from Nominatim
   useEffect(() => {
@@ -286,13 +242,45 @@ export default function RoutesPage() {
   }, [searchQuery]);
 
   const handleSuggestionClick = (suggestion: any) => {
-    const { lat, lon } = suggestion;
+    const { lat, lon, display_name } = suggestion;
+    const newPoint: LocationPoint = {
+        name: display_name,
+        coords: { latitude: parseFloat(lat), longitude: parseFloat(lon) }
+    };
+    
+    if (!source) {
+        setSource(newPoint);
+    } else {
+        setDestinations(prev => [...prev, newPoint]);
+    }
+    
     mapRef.current?.flyTo({
       center: [parseFloat(lon), parseFloat(lat)],
       zoom: 14,
     });
     setSearchQuery('');
     setSuggestions([]);
+  };
+
+  const removeDestination = (index: number) => {
+    setDestinations(prev => prev.filter((_, i) => i !== index));
+  };
+  
+  const moveDestination = (index: number, direction: 'up' | 'down') => {
+      if (direction === 'up' && index > 0) {
+          setDestinations(prev => {
+              const newDests = [...prev];
+              [newDests[index - 1], newDests[index]] = [newDests[index], newDests[index-1]];
+              return newDests;
+          });
+      }
+      if (direction === 'down' && index < destinations.length - 1) {
+           setDestinations(prev => {
+              const newDests = [...prev];
+              [newDests[index + 1], newDests[index]] = [newDests[index], newDests[index+1]];
+              return newDests;
+          });
+      }
   };
 
 
@@ -415,11 +403,12 @@ export default function RoutesPage() {
            <DialogHeader className="p-6 pb-0">
             <DialogTitle>{editingRoute ? t('editRoute') : t('addRoute')}</DialogTitle>
           </DialogHeader>
-            <div className="flex-1 flex flex-col gap-4 overflow-hidden px-6">
-                <div className="relative">
+          <div className="grid grid-cols-1 md:grid-cols-2 flex-1 gap-4 overflow-hidden px-6">
+            <div className="flex flex-col gap-4">
+                 <div className="relative">
                     <Input
                         id="location-search"
-                        placeholder="Search for a location..."
+                        placeholder={!source ? "Search for starting point" : "Search for destination"}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         autoComplete="off"
@@ -443,91 +432,75 @@ export default function RoutesPage() {
                     )}
                 </div>
 
-                <div className="flex-1 w-full rounded-md overflow-hidden relative bg-muted">
-                    <Map
-                        ref={mapRef}
-                        initialViewState={initialViewState}
-                        style={{width: '100%', height: '100%'}}
-                        mapStyle={osmStyle}
-                        onClick={handleMapClick}
-                        >
-                        {sourceCoords && (
-                            <Marker longitude={sourceCoords.longitude} latitude={sourceCoords.latitude}>
-                                <div className="flex flex-col items-center cursor-pointer">
-                                  <MapPin className="h-8 w-8 text-blue-600 fill-blue-400/80 drop-shadow-lg" />
-                                  <span className="text-xs font-bold bg-background/80 px-2 py-0.5 rounded-full shadow-lg">S</span>
-                                </div>
-                            </Marker>
-                        )}
-                        {destCoords.map((coords, index) => (
-                            <Marker key={index} longitude={coords.longitude} latitude={coords.latitude}>
-                                 <div className="flex flex-col items-center cursor-pointer">
-                                    <MapPin className="h-8 w-8 text-red-600 fill-red-400/80 drop-shadow-lg" />
-                                     <span className="text-xs font-bold bg-background/80 px-2 py-0.5 rounded-full shadow-lg">{index + 1}</span>
-                                </div>
-                            </Marker>
-                        ))}
-                    </Map>
+                <div className="flex-1 space-y-2 overflow-y-auto pr-2">
+                    {source && (
+                        <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
+                            <MapPin className="h-5 w-5 text-blue-600" />
+                            <p className="flex-1 text-sm truncate">{source.name}</p>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSource(null)}><X className="h-4 w-4"/></Button>
+                        </div>
+                    )}
+                    {destinations.map((dest, index) => (
+                        <div key={index} className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
+                             <MapPin className="h-5 w-5 text-red-600" />
+                             <p className="flex-1 text-sm truncate">{dest.name}</p>
+                             <div className="flex items-center">
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveDestination(index, 'up')} disabled={index === 0}><ArrowUp className="h-4 w-4"/></Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveDestination(index, 'down')} disabled={index === destinations.length - 1}><ArrowDown className="h-4 w-4"/></Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeDestination(index)}><X className="h-4 w-4"/></Button>
+                             </div>
+                        </div>
+                    ))}
                 </div>
             </div>
+
+            <div className="flex-1 w-full rounded-md overflow-hidden relative bg-muted">
+                <Map
+                    ref={mapRef}
+                    initialViewState={initialViewState}
+                    style={{width: '100%', height: '100%'}}
+                    mapStyle={osmStyle}
+                    >
+                    {source && (
+                        <Marker longitude={source.coords.longitude} latitude={source.coords.latitude}>
+                            <div className="flex flex-col items-center cursor-pointer">
+                              <MapPin className="h-8 w-8 text-blue-600 fill-blue-400/80 drop-shadow-lg" />
+                              <span className="text-xs font-bold bg-background/80 px-2 py-0.5 rounded-full shadow-lg">S</span>
+                            </div>
+                        </Marker>
+                    )}
+                    {destinations.map((dest, index) => (
+                        <Marker key={index} longitude={dest.coords.longitude} latitude={dest.coords.latitude}>
+                             <div className="flex flex-col items-center cursor-pointer">
+                                <MapPin className="h-8 w-8 text-red-600 fill-red-400/80 drop-shadow-lg" />
+                                 <span className="text-xs font-bold bg-background/80 px-2 py-0.5 rounded-full shadow-lg">{index + 1}</span>
+                            </div>
+                        </Marker>
+                    ))}
+                </Map>
+            </div>
+
+          </div>
             
             <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
             <div className="bg-muted/50 p-6 border-t">
-                <div className="max-h-[25vh] overflow-y-auto pr-2 space-y-4">
-                    <FormField
-                        control={form.control}
-                        name="source"
-                        render={({ field }) => (
-                            <FormItem>
-                                <div className={cn("grid grid-cols-[auto,1fr,auto] items-center gap-2 transition-all p-2 rounded-lg", activeFieldIndex === 'source' ? 'bg-blue-100 dark:bg-blue-900/50' : '')}>
-                                    <Label htmlFor="source" className="font-bold">Source</Label>
-                                    <FormControl>
-                                        <Input id="source" placeholder="Source Name (e.g. Hinjewadi Lake)" {...field} onFocus={() => setActiveFieldIndex('source')} />
-                                    </FormControl>
-                                </div>
-                                <FormMessage className="pl-12"/>
-                            </FormItem>
-                        )}
-                    />
+                <FormField
+                    control={form.control}
+                    name="rate_per_trip"
+                    render={({ field }) => (
+                        <FormItem className="grid grid-cols-2 items-center gap-2">
+                            <Label htmlFor="rate_per_trip" className="font-bold">Rate per Trip (₹)</Label>
+                            <FormControl>
+                                <Input id="rate_per_trip" type="number" placeholder="e.g. 500" {...field} />
+                            </FormControl>
+                            <div className="col-span-2">
+                               <FormMessage/>
+                            </div>
+                        </FormItem>
+                    )}
+                />
 
-                    {fields.map((item, index) => (
-                         <FormField
-                            key={item.id}
-                            control={form.control}
-                            name={`destinations.${index}.name`}
-                            render={({ field }) => (
-                                <FormItem>
-                                    <div className={cn("grid grid-cols-[auto,1fr,auto] items-center gap-2 transition-all p-2 rounded-lg", activeFieldIndex === index ? 'bg-red-100 dark:bg-red-900/50' : '')}>
-                                        <Label htmlFor={`destinations.${index}.name`} className="font-bold">Dest. {index + 1}</Label>
-                                        <FormControl>
-                                            <Input placeholder={`Destination ${index + 1} Name`} {...field} onFocus={() => setActiveFieldIndex(index)} />
-                                        </FormControl>
-                                        <Button type="button" size="icon" variant="ghost" className="text-muted-foreground hover:text-destructive h-8 w-8" onClick={() => handleRemoveDestination(index)}><X /></Button>
-                                    </div>
-                                    <FormMessage className="pl-12"/>
-                                </FormItem>
-                            )}
-                        />
-                    ))}
-
-                    <Button type="button" size="sm" variant="outline" onClick={() => append({ name: '' })} className="ml-12">Add Destination</Button>
-                    
-                    <FormField
-                        control={form.control}
-                        name="rate_per_trip"
-                        render={({ field }) => (
-                            <FormItem className="grid grid-cols-[auto,1fr] items-center gap-2 pt-4">
-                                <Label htmlFor="rate_per_trip" className="font-bold">Rate/Trip</Label>
-                                <FormControl>
-                                    <Input id="rate_per_trip" type="number" placeholder="e.g. 500" {...field} />
-                                </FormControl>
-                                <FormMessage className="col-span-2 pl-12"/>
-                            </FormItem>
-                        )}
-                    />
-
-                </div>
                 <DialogFooter className="pt-6">
                 <DialogClose asChild>
                     <Button type="button" variant="secondary">
