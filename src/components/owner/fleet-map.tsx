@@ -80,30 +80,41 @@ export function FleetMap() {
     zoom: 10,
   });
 
-  const todayStart = useMemo(() => {
-    const d = new Date();
-    d.setHours(0,0,0,0);
-    return Timestamp.fromDate(d);
-  }, []);
-
   // Fetch live data
-  const driversQuery = useMemo(() => {
+  const allOwnerUsersQuery = useMemo(() => {
     if (!firestore || !user) return null;
-    return query(collection(firestore, 'users'), where('ownerId', '==', user.uid), where('role', '==', 'driver'), where('is_active', '==', true));
+    return query(collection(firestore, 'users'), where('ownerId', '==', user.uid));
   }, [firestore, user]);
-  const { data: drivers, loading: driversLoading } = useCollection<Driver>(driversQuery);
+  const { data: allOwnerUsers, loading: driversLoading } = useCollection<Driver>(allOwnerUsersQuery);
 
-  const tripsQuery = useMemo(() => {
+  const drivers = useMemo(() => {
+      if (!allOwnerUsers) return [];
+      return allOwnerUsers.filter(u => u.role === 'driver' && u.is_active);
+  }, [allOwnerUsers]);
+
+  const allTripsQuery = useMemo(() => {
     if (!firestore || !user) return null;
-    return query(collection(firestore, 'trips'), where('ownerId', '==', user.uid), where('date', '>=', todayStart));
-  }, [firestore, user, todayStart]);
-  const { data: todaysTrips, loading: tripsLoading } = useCollection<Trip>(tripsQuery);
-  
-  const routesQuery = useMemo(() => {
-    if (!firestore || !user) return null;
-    return query(collection(firestore, 'routes'), where('ownerId', '==', user.uid), where('is_active', '==', true));
+    return query(collection(firestore, 'trips'), where('ownerId', '==', user.uid));
   }, [firestore, user]);
-  const { data: routes, loading: routesLoading } = useCollection<Route>(routesQuery);
+  const { data: allTrips, loading: tripsLoading } = useCollection<Trip>(allTripsQuery);
+
+  const todaysTrips = useMemo(() => {
+      if (!allTrips) return [];
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      return allTrips.filter(trip => trip.date.toDate() >= todayStart);
+  }, [allTrips]);
+  
+  const allRoutesQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'routes'), where('ownerId', '==', user.uid));
+  }, [firestore, user]);
+  const { data: allRoutes, loading: routesLoading } = useCollection<Route>(allRoutesQuery);
+
+  const routes = useMemo(() => {
+      if (!allRoutes) return [];
+      return allRoutes.filter(r => r.is_active);
+  }, [allRoutes]);
 
 
   // Initialize driver positions once data is loaded
