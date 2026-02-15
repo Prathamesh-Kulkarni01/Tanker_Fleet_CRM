@@ -395,8 +395,12 @@ export default function ReportsPage() {
             </Accordion>
         ) : (
             <Card>
-                <CardContent className="py-12 text-center">
-                    <p className="text-muted-foreground">{t('noTripsFoundForSelection')}</p>
+                <CardContent className="p-12 text-center">
+                    <div className="mx-auto max-w-sm">
+                        <Banknote className="mx-auto h-12 w-12 text-muted-foreground" />
+                        <h3 className="mt-4 text-lg font-medium">{t('noTripsToSettle')}</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">{t('noTripsToSettleDescription')}</p>
+                    </div>
                 </CardContent>
             </Card>
         )}
@@ -404,3 +408,5 @@ export default function ReportsPage() {
     </div>
   );
 }
+
+    

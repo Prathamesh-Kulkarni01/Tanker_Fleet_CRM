@@ -37,14 +37,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useI18n } from '@/lib/i18n';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, ArrowRight, MapPin, AlertCircle, LocateFixed, X, ArrowDown, ArrowUp, GripVertical } from 'lucide-react';
+import { Plus, Edit, Trash2, ArrowRight, MapPin, AlertCircle, LocateFixed, X, ArrowDown, ArrowUp, GripVertical, Map } from 'lucide-react';
 import { useAuth } from '@/contexts/auth';
 import { Alert, AlertTitle, AlertDescription as AlertDescriptionComponent } from '@/components/ui/alert';
 import { useFirestore, useCollection } from '@/firebase';
 import { collection, query, where, doc, addDoc, updateDoc } from 'firebase/firestore';
 import type { Route } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
-import Map, { Marker, MapRef, type MapStyle } from 'react-map-gl/maplibre';
+import MapGL, { Marker, MapRef, type MapStyle } from 'react-map-gl/maplibre';
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
 import { cn } from '@/lib/utils';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
@@ -329,59 +329,80 @@ export default function RoutesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold font-headline sm:text-3xl">{t('routes')}</h1>
       </div>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {routes && routes.map(route => {
-          return (
-            <Card key={route.id} className={!route.is_active ? 'bg-muted/50' : ''}>
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <CardTitle className="flex items-start gap-2 flex-wrap">
-                    <MapPin className="h-5 w-5 text-primary shrink-0 mt-1" />
-                    <span className="font-semibold">{route.source}</span>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
-                    <span className="text-muted-foreground font-normal">{route.destinations.join(', ')}</span>
-                  </CardTitle>
-                  <Badge variant={route.is_active ? 'secondary' : 'outline'}>
-                    {route.is_active ? t('active') : t('inactive')}
-                  </Badge>
+        
+      {!routesLoading && !routesError && (
+        <>
+            {routes && routes.length > 0 ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {routes.map(route => {
+                    return (
+                        <Card key={route.id} className={!route.is_active ? 'bg-muted/50' : ''}>
+                        <CardHeader>
+                            <div className="flex justify-between items-start">
+                            <CardTitle className="flex items-start gap-2 flex-wrap">
+                                <MapPin className="h-5 w-5 text-primary shrink-0 mt-1" />
+                                <span className="font-semibold">{route.source}</span>
+                                <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
+                                <span className="text-muted-foreground font-normal">{route.destinations.join(', ')}</span>
+                            </CardTitle>
+                            <Badge variant={route.is_active ? 'secondary' : 'outline'}>
+                                {route.is_active ? t('active') : t('inactive')}
+                            </Badge>
+                            </div>
+                            <CardDescription>₹{route.rate_per_trip.toLocaleString('en-IN')} / {t('trip')}</CardDescription>
+                        </CardHeader>
+                        <CardFooter className="flex justify-end gap-2">
+                            <Button variant="ghost" size="sm" onClick={() => handleEditRoute(route)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            {t('edit')}
+                            </Button>
+                            {route.is_active && (
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    {t('deactivate')}
+                                </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>{t('deactivateRoute')}</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                    {t('deactivateRouteConfirmation')}
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeactivateRoute(route.id)}>
+                                    {t('deactivate')}
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                            )}
+                        </CardFooter>
+                        </Card>
+                    );
+                    })}
                 </div>
-                <CardDescription>₹{route.rate_per_trip.toLocaleString('en-IN')} / {t('trip')}</CardDescription>
-              </CardHeader>
-              <CardFooter className="flex justify-end gap-2">
-                <Button variant="ghost" size="sm" onClick={() => handleEditRoute(route)}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  {t('edit')}
-                </Button>
-                {route.is_active && (
-                   <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          {t('deactivate')}
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>{t('deactivateRoute')}</AlertDialogTitle>
-                        <AlertDialogDescription>
-                         {t('deactivateRouteConfirmation')}
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDeactivateRoute(route.id)}>
-                          {t('deactivate')}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
-              </CardFooter>
-            </Card>
-          );
-        })}
-      </div>
+            ) : (
+                <Card className="mt-6">
+                    <CardContent className="p-12 text-center">
+                        <div className="mx-auto max-w-sm">
+                            <Map className="mx-auto h-12 w-12 text-muted-foreground" />
+                            <h3 className="mt-4 text-lg font-medium">{t('noRoutesCreated')}</h3>
+                            <p className="mt-1 text-sm text-muted-foreground">{t('noRoutesCreatedDescription')}</p>
+                            <Button onClick={handleAddRoute} className="mt-6">
+                                <Plus className="mr-2" />
+                                {t('createYourFirstRoute')}
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+        </>
+      )}
+
 
       <Button
         className="fixed bottom-20 right-4 h-14 w-14 rounded-full shadow-lg md:hidden"
@@ -454,7 +475,7 @@ export default function RoutesPage() {
             </div>
 
             <div className="flex-1 w-full rounded-md overflow-hidden relative bg-muted">
-                <Map
+                <MapGL
                     ref={mapRef}
                     initialViewState={initialViewState}
                     style={{width: '100%', height: '100%'}}
@@ -476,7 +497,7 @@ export default function RoutesPage() {
                             </div>
                         </Marker>
                     ))}
-                </Map>
+                </MapGL>
             </div>
 
           </div>
@@ -516,3 +537,5 @@ export default function RoutesPage() {
     </div>
   );
 }
+
+    

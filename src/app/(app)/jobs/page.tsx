@@ -64,11 +64,15 @@ function JobsList({ jobs, drivers, onApprove }: { jobs: Job[] | null; drivers: D
 
     if (!jobs || jobs.length === 0) {
         return (
-            <div className="text-center py-12">
-                <Briefcase className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-4 text-lg font-medium">{t('noJobsHere')}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{t('noJobsHereDescription')}</p>
-            </div>
+            <Card>
+                <CardContent className="p-12 text-center">
+                    <div className="mx-auto max-w-xs">
+                        <Briefcase className="mx-auto h-12 w-12 text-muted-foreground" />
+                        <h3 className="mt-4 text-lg font-medium">{t('noJobsHere')}</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">{t('noJobsHereDescription')}</p>
+                    </div>
+                </CardContent>
+            </Card>
         );
     }
     
@@ -245,3 +249,5 @@ export default function JobsPage() {
         </div>
     );
 }
+
+    

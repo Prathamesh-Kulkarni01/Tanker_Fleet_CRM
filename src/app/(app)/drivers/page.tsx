@@ -42,7 +42,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useI18n } from '@/lib/i18n';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, User, Phone, MoreVertical, View, UserX, UserCheck, Loader2, Copy } from 'lucide-react';
+import { Plus, User, Phone, MoreVertical, View, UserX, UserCheck, Loader2, Copy, Users } from 'lucide-react';
 import { useAuth } from '@/contexts/auth';
 import { Alert, AlertTitle, AlertDescription as AlertDescriptionComponent } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
@@ -169,42 +169,62 @@ export default function DriversPage() {
         </Alert>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {drivers?.map(driver => (
-          <Card key={driver.id} className={!driver.is_active ? 'bg-muted/50' : ''}>
-            <CardHeader>
-                <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-4">
-                        <Avatar className="h-12 w-12">
-                            <AvatarImage src={driver.avatar?.imageUrl} alt={driver.name} data-ai-hint={driver.avatar?.imageHint}/>
-                            <AvatarFallback>{driver.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                            <CardTitle>{driver.name}</CardTitle>
-                            <CardDescription className="flex items-center gap-2 pt-1"><Phone className="h-3 w-3"/>{driver.phone}</CardDescription>
-                        </div>
+      {!driversLoading && !driversError && (
+        <>
+          {drivers && drivers.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {drivers.map(driver => (
+                <Card key={driver.id} className={!driver.is_active ? 'bg-muted/50' : ''}>
+                  <CardHeader>
+                      <div className="flex justify-between items-start">
+                          <div className="flex items-center gap-4">
+                              <Avatar className="h-12 w-12">
+                                  <AvatarImage src={driver.avatar?.imageUrl} alt={driver.name} data-ai-hint={driver.avatar?.imageHint}/>
+                                  <AvatarFallback>{driver.name.charAt(0)}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                  <CardTitle>{driver.name}</CardTitle>
+                                  <CardDescription className="flex items-center gap-2 pt-1"><Phone className="h-3 w-3"/>{driver.phone}</CardDescription>
+                              </div>
+                          </div>
+                          <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                  <DropdownMenuItem asChild><Link href={`/drivers/${driver.id}`} className="flex items-center"><View className="mr-2"/>{t('viewProfile')}</Link></DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => setActionableDriver(driver)}>
+                                      {driver.is_active ? <><UserX className="mr-2"/>{t('deactivate')}</> : <><UserCheck className="mr-2"/>{t('activate')}</>}
+                                  </DropdownMenuItem>
+                              </DropdownMenuContent>
+                          </DropdownMenu>
+                      </div>
+                  </CardHeader>
+                  <CardContent>
+                      <Badge variant={driver.is_active ? 'secondary' : 'outline'}>
+                          {driver.is_active ? t('active') : t('inactive')}
+                      </Badge>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card className="mt-6">
+                <CardContent className="p-12 text-center">
+                    <div className="mx-auto max-w-sm">
+                        <Users className="mx-auto h-12 w-12 text-muted-foreground" />
+                        <h3 className="mt-4 text-lg font-medium">{t('noDriversAdded')}</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">{t('noDriversAddedDescription')}</p>
+                        <Button onClick={openAddDriverDialog} className="mt-6">
+                            <Plus className="mr-2" />
+                            {t('addYourFirstDriver')}
+                        </Button>
                     </div>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild><Link href={`/drivers/${driver.id}`} className="flex items-center"><View className="mr-2"/>{t('viewProfile')}</Link></DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setActionableDriver(driver)}>
-                                {driver.is_active ? <><UserX className="mr-2"/>{t('deactivate')}</> : <><UserCheck className="mr-2"/>{t('activate')}</>}
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            </CardHeader>
-            <CardContent>
-                <Badge variant={driver.is_active ? 'secondary' : 'outline'}>
-                    {driver.is_active ? t('active') : t('inactive')}
-                </Badge>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                </CardContent>
+            </Card>
+          )}
+        </>
+      )}
 
       <Button
         className="fixed bottom-20 right-4 h-14 w-14 rounded-full shadow-lg md:hidden"
@@ -292,3 +312,5 @@ export default function DriversPage() {
     </div>
   );
 }
+
+    
