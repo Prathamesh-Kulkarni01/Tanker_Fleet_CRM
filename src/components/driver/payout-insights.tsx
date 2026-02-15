@@ -8,8 +8,16 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { AlertCircle, CheckCircle2, ListChecks, Sparkles } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
+import type { Driver, Route, Slab, Trip } from '@/lib/data';
 
-export function PayoutInsights({ driverId }: { driverId: string }) {
+interface PayoutInsightsProps {
+    driver: Driver;
+    allTrips: Trip[];
+    routes: Route[];
+    slabs: Slab[];
+}
+
+export function PayoutInsights({ driver, allTrips, routes, slabs }: PayoutInsightsProps) {
   const { t } = useI18n();
   const [insights, setInsights] = useState<DriverPayoutInsightsOutput | null>(null);
   const [loading, setLoading] = useState(true);
@@ -17,9 +25,12 @@ export function PayoutInsights({ driverId }: { driverId: string }) {
 
   useEffect(() => {
     async function fetchInsights() {
+      if (!driver || !allTrips || !routes || !slabs) {
+        return;
+      }
       setLoading(true);
       setError(null);
-      const result = await getDriverInsights(driverId);
+      const result = await getDriverInsights(driver, allTrips, slabs, routes);
       if (result.success) {
         setInsights(result.data);
       } else {
@@ -28,10 +39,8 @@ export function PayoutInsights({ driverId }: { driverId: string }) {
       setLoading(false);
     }
 
-    if (driverId) {
-      fetchInsights();
-    }
-  }, [driverId]);
+    fetchInsights();
+  }, [driver, allTrips, routes, slabs]);
 
   if (loading) {
     return <PayoutInsightsSkeleton />;

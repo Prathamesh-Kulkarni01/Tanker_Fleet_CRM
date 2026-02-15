@@ -48,18 +48,15 @@ export default function DriverPage({ params }: { params: { driverId: string } })
 
   const ownerId = driver?.ownerId || user?.uid;
 
-  // Fetch trips for the current month
-  const now = new Date();
-  const monthStart = startOfMonth(now);
-  const tripsQuery = useMemo(() => {
+  // Fetch ALL trips for the driver, then filter by month on the client
+  const allTripsQuery = useMemo(() => {
     if (!firestore || !params.driverId) return null;
     return query(
       collection(firestore, 'trips'),
-      where('driverId', '==', params.driverId),
-      where('date', '>=', Timestamp.fromDate(monthStart))
+      where('driverId', '==', params.driverId)
     );
-  }, [firestore, params.driverId, monthStart]);
-  const { data: currentMonthTrips, loading: tripsLoading } = useCollection<Trip>(tripsQuery);
+  }, [firestore, params.driverId]);
+  const { data: allTrips, loading: tripsLoading } = useCollection<Trip>(allTripsQuery);
   
   // Fetch owner's routes and slabs
   const routesQuery = useMemo(() => {
@@ -74,6 +71,13 @@ export default function DriverPage({ params }: { params: { driverId: string } })
   }, [firestore, ownerId]);
   const { data: slabs, loading: slabsLoading } = useCollection<Slab>(slabsQuery);
 
+
+  const currentMonthTrips = useMemo(() => {
+    if (!allTrips) return [];
+    const now = new Date();
+    const monthStart = startOfMonth(now);
+    return allTrips.filter(t => t.date.toDate() >= monthStart);
+  }, [allTrips]);
 
   const latestTrip = useMemo(() => {
     if (!currentMonthTrips || currentMonthTrips.length === 0) return null;
@@ -230,7 +234,10 @@ export default function DriverPage({ params }: { params: { driverId: string } })
         </Card>
       )}
 
-      <PayoutInsights driverId={params.driverId} />
+      {!isLoading && driver && allTrips && routes && slabs && (
+        <PayoutInsights driver={driver} allTrips={allTrips} routes={routes} slabs={slabs} />
+      )}
+
 
       <Card>
         <CardHeader>

@@ -39,15 +39,16 @@ export default function DashboardPage() {
   const { t } = useI18n();
   const { user } = useAuth();
   const firestore = useFirestore();
-
+  
   const now = new Date();
   const currentMonthStart = startOfMonth(now);
 
   const tripsQuery = useMemo(() => {
     if (!firestore || !user) return null;
-    return query(collection(firestore, 'trips'), where('ownerId', '==', user.uid), where('date', '>=', Timestamp.fromDate(currentMonthStart)));
-  }, [firestore, user, currentMonthStart]);
-  const { data: currentMonthTrips, loading: tripsLoading } = useCollection<Trip>(tripsQuery);
+    // Fetch all trips for the owner, filter by date on the client to avoid composite indexes
+    return query(collection(firestore, 'trips'), where('ownerId', '==', user.uid));
+  }, [firestore, user]);
+  const { data: allTrips, loading: tripsLoading } = useCollection<Trip>(tripsQuery);
   
   const driversQuery = useMemo(() => {
     if (!firestore || !user) return null;
@@ -60,6 +61,11 @@ export default function DashboardPage() {
     return query(collection(firestore, 'routes'), where('ownerId', '==', user.uid));
   }, [firestore, user]);
   const { data: routes, loading: routesLoading } = useCollection<Route>(routesQuery);
+
+  const currentMonthTrips = useMemo(() => {
+    if (!allTrips) return [];
+    return allTrips.filter(trip => trip.date.toDate() >= currentMonthStart);
+  }, [allTrips, currentMonthStart]);
 
 
   // 1. Total Trips (This Month)

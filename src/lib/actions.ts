@@ -1,33 +1,16 @@
 'use server';
 
 import { driverPayoutInsights, DriverPayoutInsightsInput } from '@/ai/flows/driver-payout-insights-flow';
-import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
-import { format, startOfMonth, endOfMonth, getMonth, getYear } from 'date-fns';
+import type { Driver, Route, Trip, Slab } from '@/lib/data';
+import { format, getMonth, getYear } from 'date-fns';
 
-async function getFirestoreData(collectionName: string, conditions: [string, '==', any][]) {
-    const { firestore } = initializeFirebase();
-    const q = query(collection(firestore, collectionName), ...conditions.map(c => where(c[0], c[1], c[2])));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-}
 
-export async function getDriverInsights(driverId: string) {
+export async function getDriverInsights(driver: Driver, allTrips: Trip[], slabs: Slab[], routes: Route[]) {
   try {
-    const { firestore } = initializeFirebase();
-
-    // 1. Get Driver and Owner Info
-    const driverDocs = await getFirestoreData('users', [['id', '==', driverId]]);
-    const driver = driverDocs[0];
     if (!driver) {
       throw new Error('Driver not found');
     }
     const ownerId = driver.ownerId;
-
-    // 2. Get all necessary data for this owner/driver
-    const allTrips = await getFirestoreData('trips', [['driverId', '==', driverId]]) as any[];
-    const slabs = await getFirestoreData('payoutSlabs', [['ownerId', '==', ownerId]]);
-    const routes = await getFirestoreData('routes', [['ownerId', '==', ownerId]]);
 
     const now = new Date();
     const currentMonthStr = format(now, 'yyyy-MM');

@@ -29,7 +29,7 @@ export const useCollection = <T extends DocumentData>(
         setError(null);
       },
       async (err) => {
-        const path = q instanceof CollectionReference ? q.path : (q as any)._query.path.segments.join('/');
+        const path = 'path' in q ? q.path : (q as any)._query.path.segments.join('/');
         const permissionError = new FirestorePermissionError({
           path,
           operation: 'list',

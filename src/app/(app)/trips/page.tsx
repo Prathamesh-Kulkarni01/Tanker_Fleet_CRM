@@ -40,17 +40,22 @@ export default function TripsPage() {
   const { user } = useAuth();
   const firestore = useFirestore();
 
-  // Fetch recent trips
-  const recentTripsQuery = useMemo(() => {
+  // Fetch all trips, then sort/slice on client to avoid composite index
+  const allTripsQuery = useMemo(() => {
     if (!firestore || !user) return null;
     return query(
         collection(firestore, 'trips'), 
-        where('ownerId', '==', user.uid), 
-        orderBy('date', 'desc'),
-        limit(5)
+        where('ownerId', '==', user.uid)
     );
   }, [firestore, user]);
-  const { data: recentTrips, loading: recentTripsLoading } = useCollection<Trip>(recentTripsQuery);
+  const { data: allTrips, loading: recentTripsLoading } = useCollection<Trip>(allTripsQuery);
+
+  const recentTrips = useMemo(() => {
+      if (!allTrips) return [];
+      return [...allTrips]
+        .sort((a,b) => b.date.toDate().getTime() - a.date.toDate().getTime())
+        .slice(0, 5);
+  }, [allTrips]);
 
   const tripFormSchema = z.object({
     driverId: z.string().min(1, t('driverRequired')),
