@@ -19,14 +19,25 @@ import {
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { drivers } from '@/lib/data';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/contexts/auth';
+import { useFirestore, useCollection } from '@/firebase';
+import { query, collection, where } from 'firebase/firestore';
+import { useMemo } from 'react';
+import type { Driver } from '@/lib/data';
 
 export function AppSidebarNav() {
   const pathname = usePathname();
   const { t } = useI18n();
   const { user } = useAuth();
+  const firestore = useFirestore();
+
+  const driversQuery = useMemo(() => {
+    if (!firestore || !user || user.role !== 'owner') return null;
+    return query(collection(firestore, 'users'), where('ownerId', '==', user.uid), where('role', '==', 'driver'), where('is_active', '==', true));
+  }, [firestore, user]);
+  const { data: drivers, loading: driversLoading } = useCollection<Driver>(driversQuery);
+
 
   if (!user) return null;
   
@@ -106,7 +117,7 @@ export function AppSidebarNav() {
           </Link>
         </SidebarMenuButton>
         <SidebarMenuSub>
-          {drivers.filter(d => d.is_active).map((driver) => (
+          {drivers?.map((driver) => (
             <SidebarMenuSubItem key={driver.id}>
               <SidebarMenuSubButton asChild isActive={pathname === `/drivers/${driver.id}`}>
                 <Link href={`/drivers/${driver.id}`}>

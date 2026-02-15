@@ -1,7 +1,6 @@
 'use client';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { slabs as initialSlabs } from '@/lib/data';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Trash2 } from 'lucide-react';
@@ -14,7 +13,12 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
+import { useFirestore } from '@/firebase';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { query, collection, where, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import type { Slab } from '@/lib/data';
+import { useMemo } from 'react';
 
 const slabSchema = z.object({
   id: z.string(),
@@ -44,30 +48,99 @@ type SlabsFormValues = z.infer<typeof slabsFormSchema>;
 export default function SettingsPage() {
   const { t } = useI18n();
   const { user } = useAuth();
+  const firestore = useFirestore();
   const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const slabsQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'payoutSlabs'), where('ownerId', '==', user.uid));
+  }, [firestore, user]);
+  const { data: initialSlabs, loading: slabsLoading } = useCollection<Slab>(slabsQuery);
+
 
   const slabsForm = useForm<SlabsFormValues>({
     resolver: zodResolver(slabsFormSchema),
     defaultValues: {
-      slabs: initialSlabs.filter(s => s.payout_amount > 0),
+      slabs: [],
     },
     mode: 'onChange'
   });
-
-  const { fields: slabFields, append: appendSlab, remove: removeSlab } = useFieldArray({
+  
+  const { fields: slabFields, append: appendSlab, remove: removeSlab, update: updateSlab, replace: replaceSlabs } = useFieldArray({
     control: slabsForm.control,
     name: 'slabs',
+    keyName: 'formId'
   });
 
-  const onSlabsSubmit = (data: SlabsFormValues) => {
-    console.log('Saving slabs:', data.slabs);
-    // In a real app, you'd send this to your backend.
-    toast({
-      title: t('settingsSaved'),
-      description: t('payoutSlabsUpdated'),
-    });
+  // When firestore data loads, update the form
+  useMemo(() => {
+    if(initialSlabs) {
+        replaceSlabs(initialSlabs.sort((a,b) => a.min_trips - b.min_trips));
+    }
+  }, [initialSlabs, replaceSlabs]);
+
+  const onSlabsSubmit = async (data: SlabsFormValues) => {
+    if (!firestore || !user) return;
+
+    setIsSubmitting(true);
+    try {
+        // This simple approach updates all slabs on every save.
+        // A more complex implementation could diff the changes.
+        for (const slab of data.slabs) {
+            const { id, ...slabData } = slab;
+            if (id.startsWith('new-')) {
+                // New slab
+                await addDoc(collection(firestore, 'payoutSlabs'), {
+                    ...slabData,
+                    ownerId: user.uid,
+                });
+            } else {
+                // Existing slab
+                const slabRef = doc(firestore, 'payoutSlabs', id);
+                await updateDoc(slabRef, slabData);
+            }
+        }
+
+        toast({
+            title: t('settingsSaved'),
+            description: t('payoutSlabsUpdated'),
+        });
+    } catch(e) {
+        console.error("Error saving slabs:", e);
+        toast({
+          variant: 'destructive',
+          title: t('error'),
+          description: t('couldNotSaveSlabs'),
+        });
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
+  const handleRemoveSlab = async (index: number) => {
+    if (!firestore) return;
+    const slabId = slabFields[index].id;
+    removeSlab(index); // Remove from UI immediately
+
+    if (!slabId.startsWith('new-')) {
+        try {
+            await deleteDoc(doc(firestore, 'payoutSlabs', slabId));
+            toast({
+              title: "Slab removed",
+              description: "The payout slab has been deleted.",
+            });
+        } catch(e) {
+            console.error("Error removing slab: ", e);
+            toast({
+              variant: 'destructive',
+              title: "Error",
+              description: "Could not remove slab from the database.",
+            });
+        }
+    }
+  }
+  
   if (!user) return null;
 
   if (user.role !== 'owner') {
@@ -82,6 +155,10 @@ export default function SettingsPage() {
         </Alert>
       </div>
     );
+  }
+  
+  if (slabsLoading) {
+      return <div className="p-4 md:p-8">Loading settings...</div>
   }
 
   return (
@@ -103,7 +180,8 @@ export default function SettingsPage() {
                       <CardTitle>{t('payoutSlabs')}</CardTitle>
                       <p className="text-sm text-muted-foreground pt-1">{t('defineSlabsDescription')}</p>
                     </div>
-                    <Button type="submit" size="sm" className="gap-1">
+                    <Button type="submit" size="sm" className="gap-1" disabled={isSubmitting}>
+                      {isSubmitting && <Loader2 className="animate-spin" />}
                       {t('saveChanges')}
                     </Button>
                   </div>
@@ -120,7 +198,7 @@ export default function SettingsPage() {
                     </TableHeader>
                     <TableBody>
                       {slabFields.map((field, index) => (
-                        <TableRow key={field.id}>
+                        <TableRow key={field.formId}>
                           <TableCell>
                             <FormField
                               control={slabsForm.control}
@@ -168,7 +246,7 @@ export default function SettingsPage() {
                               type="button"
                               variant="ghost"
                               size="icon"
-                              onClick={() => removeSlab(index)}
+                              onClick={() => handleRemoveSlab(index)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>

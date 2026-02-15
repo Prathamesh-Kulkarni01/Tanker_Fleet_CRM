@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { drivers, type Trip } from '@/lib/data';
+import type { Trip, Route, Driver } from '@/lib/data';
 import { useI18n } from '@/lib/i18n';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -27,29 +27,30 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import Link from 'next/link';
-import { Map } from 'lucide-react';
-
+import { Map, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth';
 import { useFirestore } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where } from 'firebase/firestore';
-import type { Route } from '@/lib/data';
+import { collection, query, where, addDoc, Timestamp, limit, orderBy } from 'firebase/firestore';
 
 
 export default function TripsPage() {
   const { t } = useI18n();
   const { toast } = useToast();
-  const [recentTrips, setRecentTrips] = useState<any[]>([]);
   const { user } = useAuth();
   const firestore = useFirestore();
 
-
-  useEffect(() => {
-    const saved = localStorage.getItem('recentTrips');
-    if (saved) {
-      setRecentTrips(JSON.parse(saved));
-    }
-  }, []);
+  // Fetch recent trips
+  const recentTripsQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(
+        collection(firestore, 'trips'), 
+        where('ownerId', '==', user.uid), 
+        orderBy('date', 'desc'),
+        limit(5)
+    );
+  }, [firestore, user]);
+  const { data: recentTrips, loading: recentTripsLoading } = useCollection<Trip>(recentTripsQuery);
 
   const tripFormSchema = z.object({
     driverId: z.string().min(1, t('driverRequired')),
@@ -82,7 +83,12 @@ export default function TripsPage() {
     mode: 'onChange',
   });
   
-  const activeDrivers = drivers.filter(d => d.is_active);
+  // Fetch active drivers and routes for the dropdowns
+  const driversQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'users'), where('ownerId', '==', user.uid), where('is_active', '==', true), where('role', '==', 'driver'));
+  }, [firestore, user]);
+  const { data: activeDrivers, loading: driversLoading } = useCollection<Driver>(driversQuery);
 
   const activeRoutesQuery = useMemo(() => {
     if (!firestore || !user) return null;
@@ -90,32 +96,43 @@ export default function TripsPage() {
   }, [firestore, user]);
   const { data: activeRoutes, loading: routesLoading } = useCollection<Route>(activeRoutesQuery);
 
-  const onSubmit = (data: TripFormValues) => {
-    const driver = activeDrivers.find(d => d.id === data.driverId);
-    const route = activeRoutes?.find(r => r.id === data.routeId);
-
-    // This is a simulation. In a real app, you'd get a proper ID from the DB.
-    const newTrip = {
-        ...data,
-        id: `trip-${Date.now()}`,
-        driverName: driver?.name,
-        routeName: route ? `${route.source} → ${route.destinations.join(', ')}` : 'Unknown Route',
-    };
+  const onSubmit = async (data: TripFormValues) => {
+    if (!firestore || !user) return;
     
-    setRecentTrips(prev => {
-        const updatedRecentTrips = [newTrip, ...prev].slice(0,5);
-        localStorage.setItem('recentTrips', JSON.stringify(updatedRecentTrips));
-        return updatedRecentTrips;
-    });
+    const driver = activeDrivers?.find(d => d.id === data.driverId);
 
-    toast({
-      title: t('tripsSaved'),
-      description: t('tripsForDriverSaved', { driverName: driver?.name || '' }),
-    });
-    form.reset(defaultValues);
-     // Keep focus on driver select for faster logging
-    form.setFocus('driverId');
+    const newTrip = {
+        ownerId: user.uid,
+        driverId: data.driverId,
+        routeId: data.routeId,
+        count: data.tripCount,
+        date: Timestamp.fromDate(new Date(data.date)),
+    };
+
+    try {
+        await addDoc(collection(firestore, 'trips'), newTrip);
+        toast({
+          title: t('tripsSaved'),
+          description: t('tripsForDriverSaved', { driverName: driver?.name || '' }),
+        });
+        form.reset(defaultValues);
+        form.setFocus('driverId');
+    } catch(error) {
+        console.error("Error saving trip:", error);
+        toast({
+            variant: 'destructive',
+            title: "Error",
+            description: "Could not save the trip. Please try again."
+        });
+    }
   };
+  
+  const getDriverName = (driverId: string) => {
+      return activeDrivers?.find(d => d.id === driverId)?.name || driverId;
+  }
+  const getRouteName = (routeId: string) => {
+      return activeRoutes?.find(r => r.id === routeId)?.source || routeId;
+  }
 
   return (
     <div className="p-4 md:p-8 flex flex-col items-center gap-6">
@@ -133,14 +150,14 @@ export default function TripsPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t('driver')}</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={driversLoading}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder={t('selectDriver')} />
+                          <SelectValue placeholder={driversLoading ? t('loadingDrivers') : t('selectDriver')} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {activeDrivers.map((driver) => (
+                        {activeDrivers?.map((driver) => (
                           <SelectItem key={driver.id} value={driver.id}>
                             {driver.name}
                           </SelectItem>
@@ -171,9 +188,9 @@ export default function TripsPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t('route')}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={routesLoading}>
                          <FormControl>
-                            <SelectTrigger disabled={routesLoading}>
+                            <SelectTrigger>
                                 <SelectValue placeholder={routesLoading ? t('loadingRoutes') : t('selectRoute')} />
                             </SelectTrigger>
                         </FormControl>
@@ -204,6 +221,7 @@ export default function TripsPage() {
                 />
               </div>
               <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting && <Loader2 className="mr-2 animate-spin" />}
                 {form.formState.isSubmitting ? t('saving') : t('saveAndLogAnother')}
               </Button>
             </form>
@@ -211,7 +229,7 @@ export default function TripsPage() {
         </CardContent>
       </Card>
 
-      {recentTrips.length > 0 && (
+      {recentTrips && recentTrips.length > 0 && (
           <Card className="w-full max-w-lg">
               <CardHeader>
                   <CardTitle>{t('recentTripsLogged')}</CardTitle>
@@ -230,11 +248,11 @@ export default function TripsPage() {
                             {recentTrips.map((trip) => (
                                 <TableRow key={trip.id}>
                                     <TableCell>
-                                        <div className="font-medium">{trip.driverName}</div>
-                                        <div className="text-xs text-muted-foreground">{format(new Date(trip.date), 'MMM d, yyyy')}</div>
+                                        <div className="font-medium">{getDriverName(trip.driverId)}</div>
+                                        <div className="text-xs text-muted-foreground">{format(trip.date.toDate(), 'MMM d, yyyy')}</div>
                                     </TableCell>
-                                    <TableCell>{trip.routeName}</TableCell>
-                                    <TableCell className="text-right font-semibold">{trip.tripCount}</TableCell>
+                                    <TableCell>{getRouteName(trip.routeId)}</TableCell>
+                                    <TableCell className="text-right font-semibold">{trip.count}</TableCell>
                                     <TableCell className="text-right">
                                         <Button asChild variant="outline" size="sm">
                                             <Link href={`/trips/live/${trip.id}`}>

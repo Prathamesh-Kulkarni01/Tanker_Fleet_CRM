@@ -9,21 +9,25 @@ import {
   createUserWithEmailAndPassword,
   type User as FirebaseUser,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, Timestamp, collection, addDoc } from 'firebase/firestore';
 import { useFirebaseAuth, useFirestore } from '@/firebase';
-import { v4 as uuidv4 } from 'uuid';
-
 
 // The user object we'll use in our app, combining Firebase Auth and Firestore data.
 export type User = {
   uid: string;
-  id: string; // Legacy ID for routing (e.g., 'd1', 'owner-1')
+  id: string; // Firestore Document ID
   name: string;
   role: 'owner' | 'driver' | 'admin';
+  ownerId?: string; // UID of the owner, for drivers.
   subscriptionExpiresAt?: string; // ISO string format
 };
 
 interface RegisterOwnerParams {
+  name: string;
+  phone: string;
+  password: any;
+}
+interface RegisterDriverParams {
   name: string;
   phone: string;
   password: any;
@@ -33,6 +37,7 @@ interface AuthContextType {
   user: User | null;
   login: (phone: string, passwordOrCode: string) => Promise<{ success: boolean; error?: string }>;
   registerOwner: (params: RegisterOwnerParams) => Promise<{ success: boolean; error?: string }>;
+  registerDriver: (params: RegisterDriverParams) => Promise<{ success: boolean; error?: string; driverId?: string }>;
   renewSubscription: (key: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   loading: boolean;
@@ -69,9 +74,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Construct the rich user object for our app
           const appUser: User = {
             uid: firebaseUser.uid,
-            id: userProfile.id || firebaseUser.uid, // Use UID as a fallback
+            id: userDoc.id,
             name: userProfile.name || 'No Name',
             role: userProfile.role || 'driver', // Default to driver if role not set
+            ownerId: userProfile.ownerId,
             subscriptionExpiresAt: expiresAt instanceof Timestamp ? expiresAt.toDate().toISOString() : expiresAt,
           };
           setUser(appUser);
@@ -106,13 +112,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userDoc = await getDoc(userDocRef);
 
       if (!userDoc.exists()) {
-          // If the profile doesn't exist in the database, we can't proceed.
-          // We sign the user out from Auth and return a specific error.
           await signOut(auth);
           return { success: false, error: 'Login successful, but no user profile found in the database. Please contact an admin.' };
       }
       
-      // The onAuthStateChanged listener will handle setting the user state and redirection.
       return { success: true };
     } catch (error: any) {
       console.error("Firebase login error:", error.code);
@@ -139,23 +142,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // 1. Create user in Firebase Auth
       const email = `${phone}@${DUMMY_EMAIL_DOMAIN}`;
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const newUser = userCredential.user;
 
-      // 2. Create user profile in Firestore (without subscription details)
       const userDocRef = doc(firestore, 'users', newUser.uid);
       await setDoc(userDocRef, {
-        id: `owner-${uuidv4()}`,
         name,
         phone,
         role: 'owner',
         isActive: true,
-        // No subscription details are set on registration
       });
       
-      // onAuthStateChanged will handle the rest
       return { success: true };
     } catch (error: any) {
         console.error("Registration error: ", error);
@@ -165,6 +163,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: 'Could not create account. Please try again.' };
     }
   }, [auth, firestore]);
+
+  const registerDriver = useCallback(async ({ name, phone, password }: RegisterDriverParams): Promise<{ success: boolean; error?: string; driverId?: string }> => {
+    if (!auth || !firestore || !user || user.role !== 'owner') {
+        return { success: false, error: 'Only owners can register drivers.' };
+    }
+
+    try {
+        const email = `${phone}@${DUMMY_EMAIL_DOMAIN}`;
+        
+        // Note: This creates a new user in Firebase Auth.
+        // In a real multi-tenant app, you might handle this differently,
+        // but for now we create a full user for the driver.
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const newDriverUser = userCredential.user;
+
+        const driverData = {
+            name,
+            phone,
+            role: 'driver' as const,
+            ownerId: user.uid,
+            is_active: true,
+        };
+
+        const docRef = doc(firestore, 'users', newDriverUser.uid);
+        await setDoc(docRef, driverData);
+        
+        return { success: true, driverId: docRef.id };
+    } catch (error: any) {
+        console.error("Driver registration error: ", error);
+        if (error.code === 'auth/email-already-in-use') {
+            return { success: false, error: 'A user with this phone number already exists.' };
+        }
+        return { success: false, error: 'Could not create driver account.' };
+    }
+  }, [auth, firestore, user]);
   
   const renewSubscription = useCallback(async (key: string): Promise<{ success: boolean; error?: string }> => {
     if (!firestore || !user) {
@@ -196,7 +229,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             usedBy: user.uid,
         });
 
-        // Update local user state
         setUser(prevUser => prevUser ? { ...prevUser, subscriptionExpiresAt: newExpiryDate.toDate().toISOString() } : null);
         
         return { success: true };
@@ -210,7 +242,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     if (!auth) return;
     await signOut(auth);
-    setUser(null); // Clear user state immediately
+    setUser(null);
     router.push('/login');
   }, [auth, router]);
 
@@ -218,11 +250,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       login,
       registerOwner,
+      registerDriver,
       renewSubscription,
       logout,
       loading,
-  }), [user, loading, login, logout, registerOwner, renewSubscription]);
-
+  }), [user, loading, login, logout, registerOwner, renewSubscription, registerDriver]);
 
   return (
     <AuthContext.Provider value={value}>

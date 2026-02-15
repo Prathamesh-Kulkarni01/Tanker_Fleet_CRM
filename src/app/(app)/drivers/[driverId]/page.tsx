@@ -1,52 +1,114 @@
 'use client';
-import { drivers, trips, slabs, routes } from '@/lib/data';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { PayoutInsights } from '@/components/driver/payout-insights';
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { Truck, DollarSign, Award, TrendingUp, Calendar, MapPin, Phone, ShieldCheck, Banknote, Map } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
+import { useMemo } from 'react';
+import { useAuth } from '@/contexts/auth';
+import { useFirestore } from '@/firebase';
+import { useCollection, useDoc } from '@/firebase/firestore';
+import { collection, doc, query, where, Timestamp } from 'firebase/firestore';
+import type { Trip, Route, Slab, Driver } from '@/lib/data';
+import { Skeleton } from '@/components/ui/skeleton';
+
+function DriverPageSkeleton() {
+  return (
+    <div className="space-y-6">
+        <div className="flex flex-col items-center text-center">
+            <Skeleton className="h-32 w-32 rounded-full" />
+            <Skeleton className="h-10 w-48 mt-4" />
+            <Skeleton className="h-5 w-64 mt-2" />
+        </div>
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-64 w-full" />
+    </div>
+  )
+}
+
 
 export default function DriverPage({ params }: { params: { driverId: string } }) {
   const { t } = useI18n();
-  const driver = drivers.find((d) => d.id === params.driverId);
+  const { user } = useAuth();
+  const firestore = useFirestore();
+
+  // Fetch driver data
+  const driverRef = useMemo(() => firestore ? doc(firestore, 'users', params.driverId) : null, [firestore, params.driverId]);
+  const { data: driver, loading: driverLoading } = useDoc<Driver>(driverRef);
+
+  const ownerId = driver?.ownerId || user?.uid;
+
+  // Fetch trips for the current month
+  const now = new Date();
+  const monthStart = startOfMonth(now);
+  const tripsQuery = useMemo(() => {
+    if (!firestore || !params.driverId) return null;
+    return query(
+      collection(firestore, 'trips'),
+      where('driverId', '==', params.driverId),
+      where('date', '>=', Timestamp.fromDate(monthStart))
+    );
+  }, [firestore, params.driverId, monthStart]);
+  const { data: currentMonthTrips, loading: tripsLoading } = useCollection<Trip>(tripsQuery);
+  
+  // Fetch owner's routes and slabs
+  const routesQuery = useMemo(() => {
+    if (!firestore || !ownerId) return null;
+    return query(collection(firestore, 'routes'), where('ownerId', '==', ownerId));
+  }, [firestore, ownerId]);
+  const { data: routes, loading: routesLoading } = useCollection<Route>(routesQuery);
+
+  const slabsQuery = useMemo(() => {
+    if (!firestore || !ownerId) return null;
+    return query(collection(firestore, 'payoutSlabs'), where('ownerId', '==', ownerId));
+  }, [firestore, ownerId]);
+  const { data: slabs, loading: slabsLoading } = useCollection<Slab>(slabsQuery);
+
+
+  const latestTrip = useMemo(() => {
+    if (!currentMonthTrips || currentMonthTrips.length === 0) return null;
+    return [...currentMonthTrips].sort((a,b) => b.date.toDate().getTime() - a.date.toDate().getTime())[0];
+  }, [currentMonthTrips]);
+
+  const totalTrips = useMemo(() => {
+    return currentMonthTrips?.reduce((acc, t) => acc + t.count, 0) || 0;
+  }, [currentMonthTrips]);
+  
+  const { currentSlab, nextSlab, estimatedPayout, progressToNextSlab } = useMemo(() => {
+    if (!slabs || slabs.length === 0) return { progressToNextSlab: 0 };
+    const sortedSlabs = [...slabs].sort((a, b) => a.min_trips - b.min_trips);
+    const current = [...sortedSlabs].reverse().find((s) => totalTrips >= s.min_trips);
+    const next = sortedSlabs.find((s) => totalTrips < s.min_trips);
+    const payout = current ? current.payout_amount : 0;
+    const progress = next ? (totalTrips / next.min_trips) * 100 : 100;
+    return { currentSlab: current, nextSlab: next, estimatedPayout: payout, progressToNextSlab: progress };
+  }, [totalTrips, slabs]);
+
+
+  const getRouteName = (routeId: string) => {
+    if (!routes) return '...';
+    const route = routes.find(r => r.id === routeId);
+    return route ? `${route.source} → ${route.destinations.join(', ')}` : 'Unknown Route';
+  }
+
+  const isLoading = driverLoading || tripsLoading || routesLoading || slabsLoading;
+
+  if (isLoading) {
+    return <DriverPageSkeleton />;
+  }
 
   if (!driver) {
     notFound();
-  }
-
-  const latestTrip = trips
-    .filter(t => t.driverId === driver.id)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-
-  const now = new Date();
-  const currentMonthStr = format(now, 'yyyy-MM');
-
-  const currentMonthTrips = trips.filter(
-    (t) => t.driverId === driver.id && t.date.startsWith(currentMonthStr)
-  );
-
-  const totalTrips = currentMonthTrips.reduce((acc, t) => acc + t.count, 0);
-
-  const sortedSlabs = [...slabs].sort((a, b) => a.min_trips - b.min_trips);
-
-  const currentSlab = [...sortedSlabs].reverse().find((s) => totalTrips >= s.min_trips);
-  const nextSlab = sortedSlabs.find((s) => totalTrips < s.min_trips);
-
-  const estimatedPayout = currentSlab ? currentSlab.payout_amount : 0;
-
-  const progressToNextSlab = nextSlab ? (totalTrips / nextSlab.min_trips) * 100 : 100;
-
-  const getRouteName = (routeId: string) => {
-    const route = routes.find(r => r.id === routeId);
-    return route ? `${route.source} → ${route.destinations.join(', ')}` : 'Unknown Route';
   }
 
   return (
@@ -122,7 +184,7 @@ export default function DriverPage({ params }: { params: { driverId: string } })
               <DollarSign className="w-8 h-8 text-green-500" />
               <div>
                 <p className="text-muted-foreground">{t('estimatedPayout')}</p>
-                <p className="font-bold text-lg">₹{estimatedPayout.toLocaleString('en-IN')}</p>
+                <p className="font-bold text-lg">₹{estimatedPayout?.toLocaleString('en-IN') || 0}</p>
               </div>
             </li>
             <Separator />
@@ -188,12 +250,12 @@ export default function DriverPage({ params }: { params: { driverId: string } })
               </TableRow>
             </TableHeader>
             <TableBody>
-              {[...currentMonthTrips]
-                .sort((a, b) => b.date.localeCompare(a.date))
+              {currentMonthTrips && [...currentMonthTrips]
+                .sort((a, b) => b.date.toDate().getTime() - a.date.toDate().getTime())
                 .map((trip) => (
                   <TableRow key={trip.id}>
                     <TableCell className="font-medium">
-                      {format(new Date(trip.date), 'MMM d, yyyy')}
+                      {format(trip.date.toDate(), 'MMM d, yyyy')}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">

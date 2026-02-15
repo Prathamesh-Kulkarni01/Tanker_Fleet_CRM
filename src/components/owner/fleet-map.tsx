@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import ReactMapGL, { Marker, Popup, MapRef, type MapStyle, Source, Layer, type LineLayer } from 'react-map-gl/maplibre';
 import Link from 'next/link';
-import { drivers, trips, type Driver, routes, type Route } from '@/lib/data';
+import { type Driver, type Route, type Trip } from '@/lib/data';
 import { TruckMarker } from '../icons/truck-marker';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
@@ -12,6 +12,10 @@ import { Badge } from '../ui/badge';
 import { useI18n } from '@/lib/i18n';
 import { MapPin } from 'lucide-react';
 import type { FeatureCollection, LineString } from 'geojson';
+import { useAuth } from '@/contexts/auth';
+import { useFirestore, useCollection } from '@/firebase';
+import { collection, query, where, Timestamp } from 'firebase/firestore';
+import { Skeleton } from '../ui/skeleton';
 
 
 type DriverPosition = {
@@ -23,7 +27,6 @@ type DriverPosition = {
   route: Route | null;
 };
 
-// Simulate initial positions around a central point (e.g., Bangalore)
 const initialCenter = { longitude: 77.5946, latitude: 12.9716 };
 
 const osmStyle: MapStyle = {
@@ -49,28 +52,6 @@ const osmStyle: MapStyle = {
 };
 
 
-function getInitialPositions(): DriverPosition[] {
-  const activeDrivers = drivers.filter(d => d.is_active);
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
-
-  return activeDrivers.map(driver => {
-    // Find a trip for today for this driver
-    const tripToday = trips.find(t => t.driverId === driver.id && t.date === todayStr);
-
-    const route = tripToday ? routes.find(r => r.id === tripToday.routeId) || null : null;
-    const status = route ? 'active' : 'idle';
-
-    return {
-      driver,
-      longitude: initialCenter.longitude + (Math.random() - 0.5) * 0.2,
-      latitude: initialCenter.latitude + (Math.random() - 0.5) * 0.2,
-      heading: Math.random() * 360,
-      status: status,
-      route: route,
-    };
-  });
-}
-
 const routeLineLayer: LineLayer = {
     id: 'route-lines',
     type: 'line',
@@ -80,7 +61,7 @@ const routeLineLayer: LineLayer = {
         'line-cap': 'round'
     },
     paint: {
-        'line-color': '#0ea5e9', // a nice blue color
+        'line-color': '#0ea5e9',
         'line-width': 2,
         'line-dasharray': [2, 2],
     }
@@ -89,12 +70,63 @@ const routeLineLayer: LineLayer = {
 export function FleetMap() {
   const { t } = useI18n();
   const mapRef = useRef<MapRef>(null);
-  const [driverPositions, setDriverPositions] = useState<DriverPosition[]>(getInitialPositions());
+  const { user } = useAuth();
+  const firestore = useFirestore();
+
+  const [driverPositions, setDriverPositions] = useState<DriverPosition[]>([]);
   const [selectedDriver, setSelectedDriver] = useState<DriverPosition | null>(null);
   const [viewState, setViewState] = useState({
     ...initialCenter,
     zoom: 10,
   });
+
+  const todayStart = useMemo(() => {
+    const d = new Date();
+    d.setHours(0,0,0,0);
+    return Timestamp.fromDate(d);
+  }, []);
+
+  // Fetch live data
+  const driversQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'users'), where('ownerId', '==', user.uid), where('role', '==', 'driver'), where('is_active', '==', true));
+  }, [firestore, user]);
+  const { data: drivers, loading: driversLoading } = useCollection<Driver>(driversQuery);
+
+  const tripsQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'trips'), where('ownerId', '==', user.uid), where('date', '>=', todayStart));
+  }, [firestore, user, todayStart]);
+  const { data: todaysTrips, loading: tripsLoading } = useCollection<Trip>(tripsQuery);
+  
+  const routesQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'routes'), where('ownerId', '==', user.uid), where('is_active', '==', true));
+  }, [firestore, user]);
+  const { data: routes, loading: routesLoading } = useCollection<Route>(routesQuery);
+
+
+  // Initialize driver positions once data is loaded
+  useEffect(() => {
+    if (drivers && todaysTrips && routes) {
+      const positions = drivers.map(driver => {
+        const tripToday = todaysTrips.find(t => t.driverId === driver.id);
+        const route = tripToday ? routes.find(r => r.id === tripToday.routeId) || null : null;
+        const status = route ? 'active' : 'idle';
+
+        return {
+          driver,
+          longitude: initialCenter.longitude + (Math.random() - 0.5) * 0.2,
+          latitude: initialCenter.latitude + (Math.random() - 0.5) * 0.2,
+          heading: Math.random() * 360,
+          status: status,
+          route: route,
+        };
+      });
+      setDriverPositions(positions);
+    }
+  }, [drivers, todaysTrips, routes]);
+
 
   // Simulate live movement
   useEffect(() => {
@@ -119,16 +151,14 @@ export function FleetMap() {
     return () => clearInterval(interval);
   }, []);
 
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
   const todaysTripsByDriver = useMemo(() => {
+    if (!todaysTrips) return {};
     const tripCounts: Record<string, number> = {};
-    trips.forEach(trip => {
-      if (trip.date === todayStr) {
-        tripCounts[trip.driverId] = (tripCounts[trip.driverId] || 0) + trip.count;
-      }
+    todaysTrips.forEach(trip => {
+      tripCounts[trip.driverId] = (tripCounts[trip.driverId] || 0) + trip.count;
     });
     return tripCounts;
-  }, [todayStr]);
+  }, [todaysTrips]);
   
   const activeDriversCount = driverPositions.filter(p => p.status === 'active').length;
   const idleDriversCount = driverPositions.filter(p => p.status === 'idle').length;
@@ -195,6 +225,13 @@ export function FleetMap() {
     return Array.from(points.values());
   }, [driverPositions]);
 
+  const isLoading = driversLoading || tripsLoading || routesLoading;
+
+  if (isLoading) {
+    return <Skeleton className="h-full w-full" />
+  }
+
+
   return (
     <div className="relative h-full w-full">
       <ReactMapGL
@@ -208,14 +245,13 @@ export function FleetMap() {
             <Layer {...routeLineLayer} />
         </Source>
 
-        {/* Source and Destination Markers */}
         {routePoints.map((point) => (
             <Marker
                 key={`${point.name}-${point.longitude}`}
                 longitude={point.longitude}
                 latitude={point.latitude}
                 anchor="bottom"
-                onClick={(e) => { e.originalEvent.stopPropagation(); }} // prevent map click
+                onClick={(e) => { e.originalEvent.stopPropagation(); }}
             >
                 <div className="flex flex-col items-center">
                     <MapPin className={point.type === 'source' ? "h-6 w-6 text-blue-600 fill-blue-400/80" : "h-6 w-6 text-red-600 fill-red-400/80"} />

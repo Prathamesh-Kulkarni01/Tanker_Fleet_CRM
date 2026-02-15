@@ -2,88 +2,140 @@
 
 import { DollarSign, Users, Truck, Map, TrendingUp, BarChart, Compass } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Bar, ComposedChart, Legend } from 'recharts';
-
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
-import { drivers, trips, routes } from '@/lib/data';
 import { format, eachDayOfInterval, startOfMonth, endOfMonth } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useI18n } from '@/lib/i18n';
+import { useAuth } from '@/contexts/auth';
+import { useFirestore } from '@/firebase';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { query, collection, where, Timestamp } from 'firebase/firestore';
+import type { Driver, Route, Trip } from '@/lib/data';
+import { useMemo } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
+
+function DashboardSkeleton() {
+    return (
+        <div className="flex flex-col gap-4 md:gap-8">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                <Skeleton className="h-28" />
+                <Skeleton className="h-28" />
+                <Skeleton className="h-28" />
+                <Skeleton className="h-28" />
+                <Skeleton className="h-28" />
+            </div>
+            <Skeleton className="h-24 w-full" />
+            <div className="grid grid-cols-1 gap-4 md:gap-8 xl:grid-cols-2">
+                <Skeleton className="h-80" />
+                <Skeleton className="h-80" />
+            </div>
+        </div>
+    )
+}
 
 export default function DashboardPage() {
   const { t } = useI18n();
+  const { user } = useAuth();
+  const firestore = useFirestore();
+
   const now = new Date();
   const currentMonthStart = startOfMonth(now);
-  const currentMonthEnd = endOfMonth(now);
-  const currentMonthStr = format(now, 'yyyy-MM');
 
-  const currentMonthTrips = trips.filter((t) => t.date.startsWith(currentMonthStr));
+  const tripsQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'trips'), where('ownerId', '==', user.uid), where('date', '>=', Timestamp.fromDate(currentMonthStart)));
+  }, [firestore, user, currentMonthStart]);
+  const { data: currentMonthTrips, loading: tripsLoading } = useCollection<Trip>(tripsQuery);
+  
+  const driversQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'users'), where('ownerId', '==', user.uid), where('role', '==', 'driver'));
+  }, [firestore, user]);
+  const { data: drivers, loading: driversLoading } = useCollection<Driver>(driversQuery);
+
+  const routesQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'routes'), where('ownerId', '==', user.uid));
+  }, [firestore, user]);
+  const { data: routes, loading: routesLoading } = useCollection<Route>(routesQuery);
+
 
   // 1. Total Trips (This Month)
-  const totalTripsThisMonth = currentMonthTrips.reduce((acc, t) => acc + t.count, 0);
+  const totalTripsThisMonth = useMemo(() => {
+    return currentMonthTrips?.reduce((acc, t) => acc + t.count, 0) || 0;
+  }, [currentMonthTrips]);
 
   // 2. Total Revenue (This Month)
-  const totalRevenueThisMonth = currentMonthTrips.reduce((acc, trip) => {
-    const route = routes.find(r => r.id === trip.routeId);
-    return acc + (trip.count * (route?.rate_per_trip || 0));
-  }, 0);
+  const totalRevenueThisMonth = useMemo(() => {
+    if (!currentMonthTrips || !routes) return 0;
+    return currentMonthTrips.reduce((acc, trip) => {
+      const route = routes.find(r => r.id === trip.routeId);
+      return acc + (trip.count * (route?.rate_per_trip || 0));
+    }, 0);
+  }, [currentMonthTrips, routes]);
 
-  // 3. Total Pending Payment (Payable for this month)
-  // This is the same as total revenue in a 100% per trip model before deductions
+  // 3. Total Pending Payment
   const totalPayableThisMonth = totalRevenueThisMonth;
 
   // 4. Active Drivers Count
-  const activeDriversCount = drivers.filter(d => d.is_active).length;
+  const activeDriversCount = useMemo(() => {
+    return drivers?.filter(d => d.is_active).length || 0;
+  }, [drivers]);
 
   // 5. Active Routes Count
-  const activeRoutesCount = routes.filter(r => r.is_active).length;
+  const activeRoutesCount = useMemo(() => {
+    return routes?.filter(r => r.is_active).length || 0;
+  }, [routes]);
 
   // 6. Trips Per Day Chart Data
-  const daysInMonth = eachDayOfInterval({ start: currentMonthStart, end: currentMonthEnd });
-  const tripsPerDayData = daysInMonth.map(day => {
-    const dayStr = format(day, 'yyyy-MM-dd');
-    const dayName = format(day, 'd');
-    const total = currentMonthTrips
-      .filter(t => t.date === dayStr)
-      .reduce((acc, t) => acc + t.count, 0);
-    return { name: dayName, total };
-  });
+  const tripsPerDayData = useMemo(() => {
+    if (!currentMonthTrips) return [];
+    const currentMonthEnd = endOfMonth(now);
+    const daysInMonth = eachDayOfInterval({ start: currentMonthStart, end: currentMonthEnd });
+    
+    return daysInMonth.map(day => {
+        const dayStr = format(day, 'yyyy-MM-dd');
+        const dayName = format(day, 'd');
+        const total = currentMonthTrips
+        .filter(t => format(t.date.toDate(), 'yyyy-MM-dd') === dayStr)
+        .reduce((acc, t) => acc + t.count, 0);
+        return { name: dayName, total };
+    });
+  }, [currentMonthTrips, currentMonthStart, now]);
 
   const tripsChartConfig = {
-    total: {
-      label: t('trips'),
-      color: 'hsl(var(--chart-1))',
-    },
+    total: { label: t('trips'), color: 'hsl(var(--chart-1))' },
   };
 
   // 7. Revenue Per Route Chart Data
-  const revenuePerRouteData = routes
-    .filter(r => r.is_active)
-    .map(route => {
-      const routeTrips = currentMonthTrips.filter(t => t.routeId === route.id);
-      const revenue = routeTrips.reduce((acc, trip) => acc + (trip.count * route.rate_per_trip), 0);
-      const routeName = `${route.source} → ${route.destinations.join(', ')}`;
-      return {
-        name: routeName.length > 25 ? `${routeName.substring(0, 25)}...` : routeName,
-        revenue
-      };
-    })
-    .filter(item => item.revenue > 0)
-    .sort((a,b) => b.revenue - a.revenue);
+  const revenuePerRouteData = useMemo(() => {
+    if (!currentMonthTrips || !routes) return [];
+    
+    return routes
+      .filter(r => r.is_active)
+      .map(route => {
+        const routeTrips = currentMonthTrips.filter(t => t.routeId === route.id);
+        const revenue = routeTrips.reduce((acc, trip) => acc + (trip.count * route.rate_per_trip), 0);
+        const routeName = `${route.source} → ${route.destinations.join(', ')}`;
+        return {
+          name: routeName.length > 25 ? `${routeName.substring(0, 25)}...` : routeName,
+          revenue
+        };
+      })
+      .filter(item => item.revenue > 0)
+      .sort((a,b) => b.revenue - a.revenue);
+  }, [currentMonthTrips, routes]);
 
   const revenueChartConfig = {
-    revenue: {
-      label: t('revenue'),
-      color: 'hsl(var(--chart-2))',
-    },
+    revenue: { label: t('revenue'), color: 'hsl(var(--chart-2))' },
   };
+  
+  const isLoading = tripsLoading || driversLoading || routesLoading;
+  if (isLoading) {
+      return <DashboardSkeleton />;
+  }
 
   return (
     <div className="flex flex-col gap-4 md:gap-8">

@@ -5,10 +5,6 @@
       "description": "Base user profile information.",
       "type": "object",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "The legacy ID for the user (e.g., 'd1', 'owner-1'). Used for client-side routing and mock data correlation."
-        },
         "name": {
           "type": "string"
         },
@@ -32,7 +28,7 @@
         },
         "ownerId": {
           "type": "string",
-          "description": "ID of the owner this driver belongs to. Only for drivers."
+          "description": "UID of the owner this driver belongs to. Only for drivers."
         },
         "subscriptionKey": {
           "type": "string",
@@ -48,8 +44,7 @@
         "name",
         "phone",
         "role",
-        "isActive",
-        "id"
+        "isActive"
       ]
     },
     "SubscriptionKey": {
@@ -82,7 +77,8 @@
       "type": "object",
       "properties": {
         "ownerId": {
-          "type": "string"
+          "type": "string",
+          "description": "The UID of the owner who created this route."
         },
         "source": {
           "type": "string"
@@ -149,10 +145,12 @@
       "type": "object",
       "properties": {
         "ownerId": {
-          "type": "string"
+          "type": "string",
+          "description": "The UID of the owner."
         },
         "driverId": {
-          "type": "string"
+          "type": "string",
+          "description": "The UID of the driver."
         },
         "date": {
           "type": "string",
@@ -179,7 +177,8 @@
       "type": "object",
       "properties": {
         "ownerId": {
-          "type": "string"
+          "type": "string",
+          "description": "The UID of the owner."
         },
         "min_trips": {
           "type": "number"
@@ -209,7 +208,7 @@
       "schema": {
         "$ref": "#/entities/UserProfile"
       },
-      "description": "Stores user profile data for all users (owners and drivers)."
+      "description": "Stores user profile data for all users (owners, drivers, and admins). The document ID is the Firebase Auth UID."
     },
     "/subscriptionKeys/{key}": {
       "schema": {
@@ -221,19 +220,19 @@
       "schema": {
         "$ref": "#/entities/Route"
       },
-      "description": "All routes for all owners. The 'ownerId' field scopes the data."
+      "description": "All routes for all owners. The 'ownerId' field (UID) scopes the data."
     },
     "/trips/{tripId}": {
       "schema": {
         "$ref": "#/entities/Trip"
       },
-      "description": "All trips for all drivers. The 'ownerId' field scopes the data."
+      "description": "All trips for all drivers. The 'ownerId' and 'driverId' fields (UIDs) scope the data."
     },
     "/payoutSlabs/{slabId}": {
       "schema": {
         "$ref": "#/entities/PayoutSlab"
       },
-      "description": "All payout slabs. The 'ownerId' field scopes the data."
+      "description": "All payout slabs. The 'ownerId' field (UID) scopes the data."
     }
   }
 }

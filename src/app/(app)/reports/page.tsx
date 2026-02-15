@@ -22,8 +22,7 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { useI18n } from '@/lib/i18n';
-import { drivers, routes, trips } from '@/lib/data';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { CalendarIcon, User, Truck, Banknote, ChevronsUpDown, FileDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { DateRange } from 'react-day-picker';
@@ -32,10 +31,18 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/contexts/auth';
+import { useFirestore, useCollection } from '@/firebase';
+import { query, collection, where, Timestamp } from 'firebase/firestore';
+import type { Driver, Route, Trip } from '@/lib/data';
+import { Skeleton } from '@/components/ui/skeleton';
+
 
 export default function ReportsPage() {
   const { t } = useI18n();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const firestore = useFirestore();
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [driverIdFilter, setDriverIdFilter] = useState<string>('all');
@@ -44,24 +51,40 @@ export default function ReportsPage() {
   const [paidAmounts, setPaidAmounts] = useState<Record<string, number>>({});
   const [paymentInputs, setPaymentInputs] = useState<Record<string, string>>({});
 
+  const driversQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'users'), where('ownerId', '==', user.uid), where('role', '==', 'driver'));
+  }, [firestore, user]);
+  const { data: drivers, loading: driversLoading } = useCollection<Driver>(driversQuery);
+
+  const routesQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'routes'), where('ownerId', '==', user.uid));
+  }, [firestore, user]);
+  const { data: routes, loading: routesLoading } = useCollection<Route>(routesQuery);
+  
+  const tripsQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'trips'), where('ownerId', '==', user.uid));
+  }, [firestore, user]);
+  const { data: allTrips, loading: tripsLoading } = useCollection<Trip>(tripsQuery);
+
   const filteredTrips = useMemo(() => {
-    return trips
-      .map(trip => ({
-        ...trip,
-        dateObj: parseISO(trip.date),
-      }))
+    if (!allTrips) return [];
+    return allTrips
       .filter(trip => {
-        if (dateRange?.from && trip.dateObj < dateRange.from) return false;
+        const tripDate = trip.date.toDate();
+        if (dateRange?.from && tripDate < dateRange.from) return false;
         if (dateRange?.to) {
             const toDate = new Date(dateRange.to);
             toDate.setHours(23, 59, 59, 999);
-            if (trip.dateObj > toDate) return false;
+            if (tripDate > toDate) return false;
         }
         if (driverIdFilter !== 'all' && trip.driverId !== driverIdFilter) return false;
         if (routeId !== 'all' && trip.routeId !== routeId) return false;
         return true;
       });
-  }, [dateRange, driverIdFilter, routeId]);
+  }, [allTrips, dateRange, driverIdFilter, routeId]);
 
   const handleDeductionChange = (driverId: string, value: string) => {
     setDeductions(prev => ({ ...prev, [driverId]: Number(value) || 0 }));
@@ -89,7 +112,7 @@ export default function ReportsPage() {
   }
 
   const settlementData = useMemo(() => {
-    if (filteredTrips.length === 0) {
+    if (filteredTrips.length === 0 || !drivers || !routes) {
       return { driverSettlements: [], totalRevenue: 0, totalDeductions: 0, totalPaid: 0, netPayable: 0, totalTrips: 0 };
     }
 
@@ -118,7 +141,7 @@ export default function ReportsPage() {
         
         return {
             driver,
-            trips: driverTrips.sort((a,b) => b.dateObj.getTime() - a.dateObj.getTime()),
+            trips: driverTrips.sort((a,b) => b.date.toDate().getTime() - a.date.toDate().getTime()),
             totalTrips,
             totalEarnings,
         };
@@ -136,7 +159,7 @@ export default function ReportsPage() {
         netPayable: grandNetPayable,
         totalTrips: grandTotalTrips
     };
-  }, [filteredTrips, deductions, paidAmounts]);
+  }, [filteredTrips, deductions, paidAmounts, drivers, routes]);
   
   const { driverSettlements, totalRevenue, totalDeductions, totalPaid, netPayable, totalTrips } = settlementData;
 
@@ -147,6 +170,8 @@ export default function ReportsPage() {
     setDeductions({});
     setPaidAmounts({});
   };
+  
+  const isLoading = driversLoading || routesLoading || tripsLoading;
 
   return (
     <div className="space-y-6">
@@ -174,24 +199,25 @@ export default function ReportsPage() {
               <Calendar initialFocus mode="range" selected={dateRange} onSelect={setDateRange} numberOfMonths={2} />
             </PopoverContent>
           </Popover>
-          <Select value={driverIdFilter} onValueChange={setDriverIdFilter}>
+          <Select value={driverIdFilter} onValueChange={setDriverIdFilter} disabled={driversLoading}>
             <SelectTrigger><SelectValue placeholder={t('selectDriver')} /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('allDrivers')}</SelectItem>
-              {drivers.map(driver => <SelectItem key={driver.id} value={driver.id}>{driver.name}</SelectItem>)}
+              {drivers?.map(driver => <SelectItem key={driver.id} value={driver.id}>{driver.name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={routeId} onValueChange={setRouteId}>
+          <Select value={routeId} onValueChange={setRouteId} disabled={routesLoading}>
             <SelectTrigger><SelectValue placeholder={t('selectRoute')} /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('allRoutes')}</SelectItem>
-              {routes.map(route => <SelectItem key={route.id} value={route.id}>{route.source} → {route.destinations.join(', ')}</SelectItem>)}
+              {routes?.map(route => <SelectItem key={route.id} value={route.id}>{route.source} → {route.destinations.join(', ')}</SelectItem>)}
             </SelectContent>
           </Select>
           <Button variant="outline" onClick={clearFilters}>{t('clearFilters')}</Button>
         </CardContent>
       </Card>
       
+      { isLoading ? <Skeleton className="h-40 w-full" /> : (
       <Card>
         <CardHeader>
             <CardTitle>{t('summary')}</CardTitle>
@@ -228,12 +254,15 @@ export default function ReportsPage() {
             </div>
         </CardContent>
       </Card>
+      )}
 
       <div className="space-y-4">
         <h2 className="text-xl font-bold font-headline">{t('driverSettlements')}</h2>
-        {driverSettlements.length > 0 ? (
+        {isLoading ? <Skeleton className="h-60 w-full" /> : 
+         driverSettlements.length > 0 ? (
             <Accordion type="single" collapsible className="w-full space-y-4">
             {driverSettlements.map(({ driver, trips, totalTrips, totalEarnings }) => {
+                if (!driver) return null;
                 const driverDeduction = deductions[driver!.id] || 0;
                 const payableAfterDeduction = totalEarnings - driverDeduction;
                 const driverPaidAmount = paidAmounts[driver!.id] || 0;
@@ -324,11 +353,11 @@ export default function ReportsPage() {
                                     </TableHeader>
                                     <TableBody>
                                         {trips.map(trip => {
-                                            const route = routes.find(r => r.id === trip.routeId);
+                                            const route = routes?.find(r => r.id === trip.routeId);
                                             const subtotal = trip.count * (route?.rate_per_trip || 0);
                                             return (
                                             <TableRow key={trip.id}>
-                                                <TableCell>{format(trip.dateObj, 'MMM d, yyyy')}</TableCell>
+                                                <TableCell>{format(trip.date.toDate(), 'MMM d, yyyy')}</TableCell>
                                                 <TableCell>{route ? `${route.source} → ${route.destinations.join(', ')}` : 'N/A'}</TableCell>
                                                 <TableCell>₹{route?.rate_per_trip.toLocaleString('en-IN')}</TableCell>
                                                 <TableCell className="text-right">{trip.count}</TableCell>

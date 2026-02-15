@@ -1,27 +1,35 @@
 'use client';
 import { LiveMap } from '@/components/driver/live-map';
-import { trips, routes, type Trip, type Route } from '@/lib/data';
-import { useMemo, useState, useEffect } from 'react';
+import type { Trip, Route } from '@/lib/data';
+import { useMemo, useState } from 'react';
+import { useFirestore, useDoc } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function LiveTripPage({ params }: { params: { tripId: string } }) {
-  const [trip, setTrip] = useState<Trip | undefined>(undefined);
-  const [route, setRoute] = useState<Route | undefined>(undefined);
+  const firestore = useFirestore();
 
-  useEffect(() => {
-    let foundTrip = trips.find((t) => t.id === params.tripId);
+  const tripRef = useMemo(() => {
+    if (!firestore || !params.tripId) return null;
+    return doc(firestore, 'trips', params.tripId);
+  }, [firestore, params.tripId]);
+  const { data: trip, loading: tripLoading } = useDoc<Trip>(tripRef);
 
-    if (!foundTrip) {
-      const recentTrips = JSON.parse(localStorage.getItem('recentTrips') || '[]') as Trip[];
-      foundTrip = recentTrips.find((t) => t.id === params.tripId);
-    }
-    
-    if (foundTrip) {
-      setTrip(foundTrip);
-      const foundRoute = routes.find((r) => r.id === foundTrip?.routeId);
-      setRoute(foundRoute);
-    }
-  }, [params.tripId]);
+  const routeRef = useMemo(() => {
+    if (!firestore || !trip?.routeId) return null;
+    return doc(firestore, 'routes', trip.routeId);
+  }, [firestore, trip]);
+  const { data: route, loading: routeLoading } = useDoc<Route>(routeRef);
 
+
+  if (tripLoading || routeLoading) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center">
+            <Skeleton className="absolute inset-0" />
+            <p className="z-10 animate-pulse font-semibold">Loading Live Map...</p>
+        </div>
+    );
+  }
 
   if (!trip || !route) {
     return (
@@ -30,6 +38,7 @@ export default function LiveTripPage({ params }: { params: { tripId: string } })
         </div>
     );
   }
+
 
   return (
     <div className="absolute inset-0">

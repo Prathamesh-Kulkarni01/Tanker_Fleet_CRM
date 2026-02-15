@@ -1,11 +1,10 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -42,17 +41,22 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useI18n } from '@/lib/i18n';
 import { useToast } from '@/hooks/use-toast';
-import { drivers as initialDrivers, Driver } from '@/lib/data';
-import { Plus, User, Phone, MoreVertical, View, UserX, UserCheck } from 'lucide-react';
+import { Plus, User, Phone, MoreVertical, View, UserX, UserCheck, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth';
 import { Alert, AlertTitle, AlertDescription as AlertDescriptionComponent } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { useFirestore } from '@/firebase';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { query, collection, where, doc, updateDoc } from 'firebase/firestore';
+import type { Driver } from '@/lib/data';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
 const driverSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   phone: z.string().regex(/^\d{10}$/, { message: 'Must be a 10-digit phone number.' }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
 });
 
 type DriverFormValues = z.infer<typeof driverSchema>;
@@ -60,45 +64,65 @@ type DriverFormValues = z.infer<typeof driverSchema>;
 export default function DriversPage() {
   const { t } = useI18n();
   const { toast } = useToast();
-  const { user } = useAuth();
-  const [drivers, setDrivers] = useState<Driver[]>(initialDrivers.filter(d => d.ownerId === user?.id));
+  const { user, registerDriver } = useAuth();
+  const firestore = useFirestore();
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [deactivatingDriver, setDeactivatingDriver] = useState<Driver | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [actionableDriver, setActionableDriver] = useState<Driver | null>(null);
+
+  const driversQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'users'), where('role', '==', 'driver'), where('ownerId', '==', user.uid));
+  }, [firestore, user]);
+  const { data: drivers, loading: driversLoading, error: driversError } = useCollection<Driver>(driversQuery);
 
   const form = useForm<DriverFormValues>({
     resolver: zodResolver(driverSchema),
   });
 
-  const onSubmit = (data: DriverFormValues) => {
-    const newDriver: Driver = {
-      id: `d${drivers.length + 10}`, // temp unique id
-      ownerId: user!.id,
-      ...data,
-      is_active: true,
-      avatar: undefined, // No avatar on creation
-    };
-    setDrivers([...drivers, newDriver]);
-    toast({
-      title: t('driverAdded'),
-      description: `${data.name} has been added. In a real app, a login would be created for them.`,
-    });
-    setIsAddDialogOpen(false);
-    form.reset({ name: '', phone: '' });
+  const onSubmit = async (data: DriverFormValues) => {
+    setIsSubmitting(true);
+    const result = await registerDriver(data);
+    if (result.success) {
+        toast({
+            title: t('driverAdded'),
+            description: `${data.name} has been added and can now log in.`,
+        });
+        setIsAddDialogOpen(false);
+        form.reset({ name: '', phone: '', password: '' });
+    } else {
+        toast({
+            variant: 'destructive',
+            title: t('error'),
+            description: result.error || 'An unknown error occurred.',
+        });
+    }
+    setIsSubmitting(false);
   };
   
-  const toggleDriverStatus = (driverId: string) => {
-    setDrivers(drivers.map(d => {
-      if (d.id === driverId) {
-        const wasActive = d.is_active;
+  const toggleDriverStatus = async () => {
+    if (!firestore || !actionableDriver) return;
+    
+    const driverRef = doc(firestore, 'users', actionableDriver.id);
+    const newStatus = !actionableDriver.is_active;
+
+    try {
+        await updateDoc(driverRef, { is_active: newStatus });
         toast({
-          title: wasActive ? t('driverDeactivated') : t('driverActivated'),
-          description: `${d.name}'s account has been ${wasActive ? 'deactivated' : 'activated'}.`,
+          title: newStatus ? t('driverActivated') : t('driverDeactivated'),
+          description: `${actionableDriver.name}'s account has been ${newStatus ? 'activated' : 'deactivated'}.`,
         });
-        return { ...d, is_active: !d.is_active };
-      }
-      return d;
-    }));
-    setDeactivatingDriver(null);
+    } catch(e) {
+        console.error("Error toggling driver status", e);
+        toast({
+            variant: 'destructive',
+            title: t('error'),
+            description: 'Could not update driver status.',
+        });
+    } finally {
+        setActionableDriver(null);
+    }
   };
 
   if (user?.role !== 'owner') {
@@ -121,8 +145,24 @@ export default function DriversPage() {
         <h1 className="text-2xl font-bold font-headline sm:text-3xl">{t('drivers')}</h1>
       </div>
 
+      {driversLoading && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {[1,2,3].map(i => <Skeleton key={i} className="h-32 w-full"/>)}
+        </div>
+      )}
+
+      {driversError && (
+         <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error Loading Drivers</AlertTitle>
+          <AlertDescriptionComponent>
+            There was a problem loading your drivers. Please try again later.
+          </AlertDescriptionComponent>
+        </Alert>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {drivers.map(driver => (
+        {drivers?.map(driver => (
           <Card key={driver.id} className={!driver.is_active ? 'bg-muted/50' : ''}>
             <CardHeader>
                 <div className="flex justify-between items-start">
@@ -142,7 +182,7 @@ export default function DriversPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem asChild><Link href={`/drivers/${driver.id}`} className="flex items-center"><View className="mr-2"/>{t('viewProfile')}</Link></DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setDeactivatingDriver(driver)}>
+                            <DropdownMenuItem onClick={() => setActionableDriver(driver)}>
                                 {driver.is_active ? <><UserX className="mr-2"/>{t('deactivate')}</> : <><UserCheck className="mr-2"/>{t('activate')}</>}
                             </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -193,32 +233,42 @@ export default function DriversPage() {
                   <p className="text-sm text-destructive">{form.formState.errors.phone.message}</p>
                 )}
               </div>
+               <div className="grid gap-2">
+                <Label htmlFor="password">{t('password')}</Label>
+                <Input id="password" type="password" {...form.register('password')} />
+                 {form.formState.errors.password && (
+                  <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
+                )}
+              </div>
             </div>
             <DialogFooter>
               <DialogClose asChild>
-                <Button type="button" variant="secondary">
+                <Button type="button" variant="secondary" disabled={isSubmitting}>
                   {t('cancel')}
                 </Button>
               </DialogClose>
-              <Button type="submit">{t('addDriver')}</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="animate-spin mr-2"/>}
+                {t('addDriver')}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
       
-      {deactivatingDriver && (
-        <AlertDialog open={!!deactivatingDriver} onOpenChange={() => setDeactivatingDriver(null)}>
+      {actionableDriver && (
+        <AlertDialog open={!!actionableDriver} onOpenChange={() => setActionableDriver(null)}>
             <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>{deactivatingDriver.is_active ? t('deactivate') : t('activate')} {deactivatingDriver.name}?</AlertDialogTitle>
+                <AlertDialogTitle>{actionableDriver.is_active ? t('deactivate') : t('activate')} {actionableDriver.name}?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    {deactivatingDriver.is_active ? t('deactivateDriverConfirmation') : t('activateDriverConfirmation')}
+                    {actionableDriver.is_active ? t('deactivateDriverConfirmation') : t('activateDriverConfirmation')}
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
-                <AlertDialogAction onClick={() => toggleDriverStatus(deactivatingDriver.id)}>
-                {deactivatingDriver.is_active ? t('deactivate') : t('activate')}
+                <AlertDialogAction onClick={toggleDriverStatus}>
+                {actionableDriver.is_active ? t('deactivate') : t('activate')}
                 </AlertDialogAction>
             </AlertDialogFooter>
             </AlertDialogContent>
