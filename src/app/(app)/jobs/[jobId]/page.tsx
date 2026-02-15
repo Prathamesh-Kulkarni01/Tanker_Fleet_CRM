@@ -1,5 +1,5 @@
 'use client';
-import { notFound } from 'next/navigation';
+import { notFound, useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { useFirestore, useDoc } from '@/firebase';
 import { doc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
@@ -24,8 +24,9 @@ function JobPageSkeleton() {
     )
 }
 
-export default function JobPage({ params }: { params: { jobId: string } }) {
-    const { jobId } = params;
+export default function JobPage() {
+    const params = useParams();
+    const jobId = params.jobId as string;
     const { t } = useI18n();
     const { toast } = useToast();
     const firestore = useFirestore();

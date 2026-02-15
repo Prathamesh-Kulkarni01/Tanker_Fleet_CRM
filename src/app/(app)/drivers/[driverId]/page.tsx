@@ -1,5 +1,5 @@
 'use client';
-import { notFound } from 'next/navigation';
+import { notFound, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -121,8 +121,9 @@ function DriverPageSkeleton() {
 }
 
 
-export default function DriverPage({ params }: { params: { driverId: string } }) {
-  const { driverId } = params;
+export default function DriverPage() {
+  const params = useParams();
+  const driverId = params.driverId as string;
   const { t } = useI18n();
   const { user } = useAuth();
   const firestore = useFirestore();

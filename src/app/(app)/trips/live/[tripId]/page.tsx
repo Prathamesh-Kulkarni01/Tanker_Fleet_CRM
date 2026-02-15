@@ -1,4 +1,5 @@
 'use client';
+import { useParams } from 'next/navigation';
 import { LiveMap } from '@/components/driver/live-map';
 import type { Trip, Route } from '@/lib/data';
 import { useMemo } from 'react';
@@ -6,8 +7,9 @@ import { useFirestore, useDoc } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
-export default function LiveTripPage({ params }: { params: { tripId: string } }) {
-  const { tripId } = params;
+export default function LiveTripPage() {
+  const params = useParams();
+  const tripId = params.tripId as string;
   const firestore = useFirestore();
 
   const tripRef = useMemo(() => {
