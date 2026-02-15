@@ -250,11 +250,12 @@ export function FleetMap() {
             offset={40}
           >
             <div className="w-48">
-              <h3 className="font-bold text-base mb-2">{selectedDriver.driver.name}</h3>
+              <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-bold text-base">{selectedDriver.driver.name}</h3>
+                  <Badge variant={selectedDriver.status === 'active' ? 'secondary' : 'outline'}>{t(selectedDriver.status)}</Badge>
+              </div>
               <div className="space-y-1.5 text-sm">
-                  <p><Badge variant={selectedDriver.status === 'active' ? 'secondary' : 'outline'}>{t(selectedDriver.status)}</Badge></p>
                   <p>{t('todaysTrips')}: <span className="font-semibold">{todaysTripsByDriver[selectedDriver.driver.id] || 0}</span></p>
-                  {selectedDriver.route && <p className="text-xs">{selectedDriver.route.source} → {selectedDriver.route.destinations.join(', ')}</p>}
               </div>
               <Button size="sm" variant="link" asChild className="p-0 h-auto mt-3">
                   <Link href={`/drivers/${selectedDriver.driver.id}`}>{t('viewProfile')}</Link>
@@ -263,19 +264,19 @@ export function FleetMap() {
           </Popup>
         )}
       </ReactMapGL>
-      <Card className="absolute top-4 left-4 w-auto max-w-sm">
+      <Card className="absolute top-4 left-4 w-auto max-w-xs">
         <CardHeader className="p-3">
             <CardTitle className="text-lg">{t('fleetOverview')}</CardTitle>
             <CardDescription>{t('liveStatusOfAllDrivers')}</CardDescription>
         </CardHeader>
-        <CardContent className="p-3 pt-0 flex gap-4">
-            <div>
-                <p className="text-xs text-muted-foreground">{t('active')}</p>
-                <p className="text-lg font-bold text-green-600">{activeDriversCount}</p>
+        <CardContent className="p-3 pt-0 space-y-1">
+            <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{t('active')}</span>
+                <span className="font-bold text-lg text-green-600">{activeDriversCount}</span>
             </div>
-            <div>
-                <p className="text-xs text-muted-foreground">{t('idle')}</p>
-                <p className="text-lg font-bold text-amber-600">{idleDriversCount}</p>
+            <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{t('idle')}</span>
+                <span className="font-bold text-lg text-amber-600">{idleDriversCount}</span>
             </div>
         </CardContent>
       </Card>

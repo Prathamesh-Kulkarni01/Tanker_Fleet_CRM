@@ -1,5 +1,13 @@
 'use client';
-import { LayoutDashboard, Users, BookText, Settings, Map, Compass } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Users,
+  BookText,
+  Settings,
+  Map,
+  Compass,
+  Truck,
+} from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -18,6 +26,7 @@ export function AppBottomNav() {
       ? [
           { href: '/dashboard', label: t('dashboard'), icon: LayoutDashboard },
           { href: '/fleet', label: t('fleet'), icon: Compass },
+          { href: '/trips', label: t('tripEntry'), icon: Truck },
           { href: '/drivers', label: t('drivers'), icon: Users },
           { href: '/routes', label: t('routes'), icon: Map },
           { href: '/reports', label: t('settlements'), icon: BookText },
