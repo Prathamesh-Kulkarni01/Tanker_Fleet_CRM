@@ -49,13 +49,13 @@ export default function AdminPage() {
             const expiresAt = addYears(new Date(), 1);
             
             const keyRef = doc(firestore, 'subscriptionKeys', newKeyId);
-            const ownerRef = doc(firestore, 'users', activatingOwner.uid);
+            const ownerRef = doc(firestore, 'users', activatingOwner.id);
 
             // Create the key, update the owner, and mark key as used
             // This is not in a transaction for simplicity, but could be for production
             await setDoc(keyRef, {
                 isUsed: true,
-                usedBy: activatingOwner.uid,
+                usedBy: activatingOwner.id,
                 createdAt: Timestamp.now(),
                 expiresAt: Timestamp.fromDate(expiresAt),
             });
