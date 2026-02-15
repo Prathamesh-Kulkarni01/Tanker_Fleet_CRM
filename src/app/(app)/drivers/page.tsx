@@ -41,7 +41,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useI18n } from '@/lib/i18n';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, User, Phone, MoreVertical, View, UserX, UserCheck, Loader2 } from 'lucide-react';
+import { Plus, User, Phone, MoreVertical, View, UserX, UserCheck, Loader2, Copy } from 'lucide-react';
 import { useAuth } from '@/contexts/auth';
 import { Alert, AlertTitle, AlertDescription as AlertDescriptionComponent } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
@@ -56,7 +56,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 const driverSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   phone: z.string().regex(/^\d{10}$/, { message: 'Must be a 10-digit phone number.' }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
 });
 
 type DriverFormValues = z.infer<typeof driverSchema>;
@@ -70,6 +69,7 @@ export default function DriversPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionableDriver, setActionableDriver] = useState<Driver | null>(null);
+  const [generatedCode, setGeneratedCode] = useState('');
 
   const driversQuery = useMemo(() => {
     if (!firestore || !user) return null;
@@ -81,16 +81,23 @@ export default function DriversPage() {
     resolver: zodResolver(driverSchema),
   });
 
+  const openAddDriverDialog = () => {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedCode(code);
+    form.reset({ name: '', phone: '' });
+    setIsAddDialogOpen(true);
+  };
+
   const onSubmit = async (data: DriverFormValues) => {
     setIsSubmitting(true);
-    const result = await registerDriver(data);
+    const result = await registerDriver({ ...data, password: generatedCode });
     if (result.success) {
         toast({
             title: t('driverAdded'),
             description: `${data.name} has been added and can now log in.`,
         });
         setIsAddDialogOpen(false);
-        form.reset({ name: '', phone: '', password: '' });
+        form.reset({ name: '', phone: '' });
     } else {
         toast({
             variant: 'destructive',
@@ -200,13 +207,13 @@ export default function DriversPage() {
 
       <Button
         className="fixed bottom-20 right-4 h-14 w-14 rounded-full shadow-lg md:hidden"
-        onClick={() => setIsAddDialogOpen(true)}
+        onClick={openAddDriverDialog}
       >
         <Plus className="h-6 w-6" />
       </Button>
       <Button
         className="hidden md:flex fixed bottom-8 right-8 h-14 rounded-full shadow-lg gap-2"
-        onClick={() => setIsAddDialogOpen(true)}
+        onClick={openAddDriverDialog}
       >
         <Plus className="h-6 w-6" />
         {t('addDriver')}
@@ -233,12 +240,18 @@ export default function DriversPage() {
                   <p className="text-sm text-destructive">{form.formState.errors.phone.message}</p>
                 )}
               </div>
-               <div className="grid gap-2">
-                <Label htmlFor="password">{t('password')}</Label>
-                <Input id="password" type="password" {...form.register('password')} />
-                 {form.formState.errors.password && (
-                  <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
-                )}
+              <div className="grid gap-2">
+                <Label htmlFor="password">Temporary Login Code</Label>
+                <div className="flex items-center gap-2">
+                    <Input id="password" readOnly value={generatedCode} className="font-mono text-lg" />
+                    <Button type="button" variant="secondary" size="icon" onClick={() => {
+                        navigator.clipboard.writeText(generatedCode);
+                        toast({ title: 'Code copied!' });
+                    }}>
+                        <Copy className="h-4 w-4" />
+                    </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">The driver will use this 6-digit code as their password to log in.</p>
               </div>
             </div>
             <DialogFooter>

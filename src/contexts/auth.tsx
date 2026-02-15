@@ -2,11 +2,14 @@
 
 import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { firebaseConfig } from '@/firebase/config';
 import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
   createUserWithEmailAndPassword,
+  getAuth,
   type User as FirebaseUser,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, Timestamp, collection, addDoc } from 'firebase/firestore';
@@ -169,13 +172,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: 'Only owners can register drivers.' };
     }
 
+    // Create a temporary, secondary Firebase App instance. This allows us to create
+    // a new user without logging out the currently signed-in owner.
+    const tempAppName = `driver-registration-${Date.now()}`;
+    const tempApp = initializeApp(firebaseConfig, tempAppName);
+    const tempAuth = getAuth(tempApp);
+
     try {
         const email = `${phone}@${DUMMY_EMAIL_DOMAIN}`;
         
-        // Note: This creates a new user in Firebase Auth.
-        // In a real multi-tenant app, you might handle this differently,
-        // but for now we create a full user for the driver.
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(tempAuth, email, password);
         const newDriverUser = userCredential.user;
 
         const driverData = {
@@ -196,6 +202,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return { success: false, error: 'A user with this phone number already exists.' };
         }
         return { success: false, error: 'Could not create driver account.' };
+    } finally {
+        // Always clean up the temporary app instance.
+        await deleteApp(tempApp);
     }
   }, [auth, firestore, user]);
   
