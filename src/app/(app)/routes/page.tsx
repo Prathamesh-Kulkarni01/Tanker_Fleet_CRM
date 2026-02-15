@@ -368,51 +368,51 @@ export default function RoutesPage() {
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {routes.map(route => {
                     return (
-                        <Card key={route.id} className={!route.is_active ? 'bg-muted/50' : ''}>
-                        <CardHeader>
-                            <div className="flex justify-between items-start">
-                                <CardTitle>{route.name}</CardTitle>
-                                <Badge variant={route.is_active ? 'secondary' : 'outline'}>
-                                    {route.is_active ? t('active') : t('inactive')}
-                                </Badge>
-                            </div>
-                            <CardDescription className="truncate" title={`${route.source} → ${route.destinations.join(', ')}`}>
-                                {route.source} → {route.destinations.join(', ')}
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="font-bold">₹{route.rate_per_trip.toLocaleString('en-IN')} / {t('trip')}</div>
-                        </CardContent>
-                        <CardFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                            <Button variant="ghost" size="sm" onClick={() => handleEditRoute(route)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            {t('edit')}
-                            </Button>
-                            {route.is_active && (
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    {t('deactivate')}
-                                </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>{t('deactivateRoute')}</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                    {t('deactivateRouteConfirmation')}
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeactivateRoute(route.id)}>
-                                    {t('deactivate')}
-                                    </AlertDialogAction>
-                                </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                            )}
-                        </CardFooter>
+                        <Card key={route.id} className={cn('flex flex-col', !route.is_active ? 'bg-muted/50' : '')}>
+                          <CardHeader className="flex-grow">
+                              <div className="flex justify-between items-start gap-4">
+                                  <CardTitle className="break-words">{route.name}</CardTitle>
+                                  <Badge variant={route.is_active ? 'secondary' : 'outline'} className="shrink-0">
+                                      {route.is_active ? t('active') : t('inactive')}
+                                  </Badge>
+                              </div>
+                              <CardDescription className="truncate" title={`${route.source} → ${route.destinations.join(', ')}`}>
+                                  {route.source} → {route.destinations.join(', ')}
+                              </CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                              <div className="font-bold">₹{route.rate_per_trip.toLocaleString('en-IN')} / {t('trip')}</div>
+                          </CardContent>
+                          <CardFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                              <Button variant="ghost" size="sm" onClick={() => handleEditRoute(route)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              {t('edit')}
+                              </Button>
+                              {route.is_active && (
+                              <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      {t('deactivate')}
+                                  </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                      <AlertDialogTitle>{t('deactivateRoute')}</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                      {t('deactivateRouteConfirmation')}
+                                      </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                      <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleDeactivateRoute(route.id)}>
+                                      {t('deactivate')}
+                                      </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                  </AlertDialogContent>
+                              </AlertDialog>
+                              )}
+                          </CardFooter>
                         </Card>
                     );
                     })}
@@ -594,6 +594,8 @@ export default function RoutesPage() {
     </div>
   );
 }
+
+    
 
     
 
