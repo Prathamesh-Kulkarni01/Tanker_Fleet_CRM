@@ -161,6 +161,35 @@
         },
         "count": {
           "type": "number"
+        },
+        "events": {
+          "type": "array",
+          "description": "A log of events that occurred during this specific trip.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "location": {
+                "type": "string",
+                "description": "Name of the location (source or destination)."
+              },
+              "action": {
+                "type": "string",
+                "description": "Action performed, e.g., 'Water Filled', 'Water Delivered'."
+              },
+              "notes": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "timestamp",
+              "location",
+              "action"
+            ]
+          }
         }
       },
       "required": [

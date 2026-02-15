@@ -1,11 +1,10 @@
 'use client';
-import { notFound, useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { notFound, useParams } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PayoutInsights } from '@/components/driver/payout-insights';
 import { format, startOfMonth } from 'date-fns';
-import { Truck, DollarSign, Award, Briefcase, AlertCircle, Check, MapPin, Anchor, Pencil, Send, CheckCircle, ArrowLeft, RotateCw } from 'lucide-react';
+import { Truck, DollarSign, Award, Briefcase, AlertCircle, Check, MapPin, Anchor, Pencil, Send, CheckCircle, ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
@@ -30,7 +29,6 @@ function DriverTripTimeline({ jobId, onBack }: { jobId: string, onBack: () => vo
     
     const [notes, setNotes] = useState('');
     const [submittingAction, setSubmittingAction] = useState<string | null>(null);
-    const [isCompleted, setIsCompleted] = useState(false);
 
     const jobRef = useMemo(() => firestore ? doc(firestore, 'jobs', jobId) : null, [firestore, jobId]);
     const { data: job, loading: jobLoading } = useDoc<Job>(jobRef);
@@ -38,44 +36,39 @@ function DriverTripTimeline({ jobId, onBack }: { jobId: string, onBack: () => vo
     const routeRef = useMemo(() => (firestore && job) ? doc(firestore, 'routes', job.routeId) : null, [firestore, job]);
     const { data: route, loading: routeLoading } = useDoc<Route>(routeRef);
     
-    const handleCompleteTrip = async () => {
+    const handleLogAndResetTrip = async () => {
         if (!firestore || !job || !user || !route || !jobRef) return;
 
-        setSubmittingAction('complete_trip');
+        setSubmittingAction('log_trip');
         try {
-            // 1. Log the final "completed" event
-            const event = {
-                timestamp: Timestamp.now(),
-                location: 'Trip End',
-                action: 'Trip Completed by Driver',
-                notes: '',
-            };
-            const jobUpdatePromise = updateDoc(jobRef, {
-                status: 'completed',
-                events: arrayUnion(event),
-            });
-
-            // 2. Create a trip entry for reporting and payroll
+            // 1. Create a new trip document with the current events
             const tripData: Omit<Trip, 'id'> = {
                 ownerId: job.ownerId,
                 driverId: job.driverId,
                 routeId: job.routeId,
-                count: 1, // Each job is counted as 1 trip
-                date: job.assignedAt, // Use the date the job was assigned for consistency
+                count: 1, // Each log is one trip
+                date: Timestamp.now(), // Log the trip at the time of completion
+                events: job.events || [], // Archive the events with the trip
             };
             const tripAddPromise = addDoc(collection(firestore, 'trips'), tripData);
 
-            await Promise.all([jobUpdatePromise, tripAddPromise]);
+            // 2. Reset the events array on the job to start the next trip's timeline
+            const jobUpdatePromise = updateDoc(jobRef, {
+                events: [],
+            });
+
+            await Promise.all([tripAddPromise, jobUpdatePromise]);
             
             toast({ 
-                title: t('tripCompleted'),
-                description: t('yourTripHasBeenLogged')
+                title: "Trip Logged!",
+                description: "Your timeline has been reset for the next trip."
             });
-            setIsCompleted(true);
+            
+            // The component will re-render with an empty `events` array, resetting the UI.
 
         } catch (e) {
             console.error(e);
-            toast({ variant: 'destructive', title: t('error'), description: t('couldNotCompleteTrip') });
+            toast({ variant: 'destructive', title: t('error'), description: "Could not log trip." });
         } finally {
             setSubmittingAction(null);
         }
@@ -112,29 +105,6 @@ function DriverTripTimeline({ jobId, onBack }: { jobId: string, onBack: () => vo
         }
     };
 
-    const handleRequestAgain = async () => {
-        if (!firestore || !user || !job) return;
-        setSubmittingAction('request_again');
-        try {
-            await addDoc(collection(firestore, 'jobs'), {
-                ownerId: job.ownerId,
-                driverId: job.driverId,
-                routeId: job.routeId,
-                routeName: job.routeName,
-                status: 'requested',
-                assignedAt: Timestamp.now(),
-                events: [],
-            });
-            toast({ title: t('tripRequested'), description: t('ownerHasBeenNotified') });
-            onBack(); // Go back to job list
-        } catch (e) {
-            console.error(e);
-            toast({ variant: 'destructive', title: t('error'), description: t('couldNotRequestTrip') });
-        } finally {
-            setSubmittingAction(null);
-        }
-    };
-    
     const isLoading = jobLoading || routeLoading;
 
     if (isLoading) {
@@ -151,22 +121,18 @@ function DriverTripTimeline({ jobId, onBack }: { jobId: string, onBack: () => vo
         return notFound();
     }
     
-    if (isCompleted || job.status === 'completed') {
+    if (job.status === 'completed') {
         return (
             <Card className="text-center">
                 <CardHeader>
                     <CheckCircle className="mx-auto h-16 w-16 text-green-500" />
-                    <CardTitle className="text-2xl">{t('tripCompleted')}</CardTitle>
-                    <CardDescription>{t('yourTripHasBeenLogged')}</CardDescription>
+                    <CardTitle className="text-2xl">Job Completed</CardTitle>
+                    <CardDescription>This job has been marked as complete by the owner.</CardDescription>
                 </CardHeader>
-                <CardContent className="flex flex-col gap-2">
-                    <Button onClick={handleRequestAgain} disabled={!!submittingAction}>
-                        <RotateCw className="mr-2 h-4 w-4" />
-                        {submittingAction === 'request_again' ? t('requesting') : t('requestSameTripAgain')}
-                    </Button>
+                <CardContent>
                     <Button variant="outline" onClick={onBack}>
                         <ArrowLeft className="mr-2 h-4 w-4" />
-                        {t('backToJobs')}
+                        Back to Jobs
                     </Button>
                 </CardContent>
             </Card>
@@ -286,17 +252,17 @@ function DriverTripTimeline({ jobId, onBack }: { jobId: string, onBack: () => vo
             {job.status !== 'completed' && allStepsComplete && (
                 <Card className="bg-green-500/10 border-green-500/50 text-center shadow-lg">
                     <CardHeader>
-                        <CardTitle>All Destinations Covered!</CardTitle>
+                        <CardTitle>Ready to Log Trip?</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-muted-foreground mb-4">You have completed all steps. Ready to complete the trip?</p>
+                        <p className="text-muted-foreground mb-4">This will log the completed trip and reset the timeline for the next one.</p>
                         <Button
                             size="lg"
                             className="bg-green-600 hover:bg-green-700 text-white"
-                            onClick={handleCompleteTrip}
+                            onClick={handleLogAndResetTrip}
                             disabled={!!submittingAction}
                         >
-                            {submittingAction === 'complete_trip' ? 'Completing...' : 'Complete & Log Trip'}
+                            {submittingAction === 'log_trip' ? 'Logging...' : 'Log Trip & Start Next'}
                         </Button>
                     </CardContent>
                 </Card>

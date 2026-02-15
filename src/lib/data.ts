@@ -34,6 +34,7 @@ export type Trip = {
   date: any; // Firestore Timestamp
   routeId: string;
   count: number;
+  events?: JobEvent[];
 };
 
 export type Slab = {
