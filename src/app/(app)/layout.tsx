@@ -22,8 +22,8 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
           <AppHeader />
           <main
             className={cn(
-              'relative flex flex-1 flex-col',
-              !isFleetPage && 'overflow-auto p-4 sm:px-6 md:p-8 pb-24 md:pb-8'
+              'relative flex-1',
+              !isFleetPage && 'flex flex-col overflow-auto p-4 sm:px-6 md:p-8 pb-24 md:pb-8'
             )}
           >
             {children}
