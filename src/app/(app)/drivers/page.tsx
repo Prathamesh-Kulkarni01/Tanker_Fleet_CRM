@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
@@ -93,7 +94,7 @@ export default function DriversPage() {
     if (result.success) {
         toast({
             title: t('driverAdded'),
-            description: `${data.name} has been added and can now log in.`,
+            description: t('driverAddedDescription', { name: data.name }),
         });
         setIsAddDialogOpen(false);
         form.reset({ name: '', phone: '' });
@@ -112,19 +113,20 @@ export default function DriversPage() {
     
     const driverRef = doc(firestore, 'users', actionableDriver.id);
     const newStatus = !actionableDriver.is_active;
+    const statusString = newStatus ? t('activated') : t('deactivated');
 
     try {
         await updateDoc(driverRef, { is_active: newStatus });
         toast({
           title: newStatus ? t('driverActivated') : t('driverDeactivated'),
-          description: `${actionableDriver.name}'s account has been ${newStatus ? 'activated' : 'deactivated'}.`,
+          description: t('driverStatusUpdated', { name: actionableDriver.name, status: statusString }),
         });
     } catch(e) {
         console.error("Error toggling driver status", e);
         toast({
             variant: 'destructive',
             title: t('error'),
-            description: 'Could not update driver status.',
+            description: t('couldNotUpdateDriverStatus'),
         });
     } finally {
         setActionableDriver(null);
@@ -136,9 +138,9 @@ export default function DriversPage() {
       <div className="p-4 md:p-8">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Access Denied</AlertTitle>
+          <AlertTitle>{t('accessDenied')}</AlertTitle>
           <AlertDescriptionComponent>
-            You do not have permission to view this page.
+            {t('noPermissionToViewPage')}
           </AlertDescriptionComponent>
         </Alert>
       </div>
@@ -160,9 +162,9 @@ export default function DriversPage() {
       {driversError && (
          <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error Loading Drivers</AlertTitle>
+          <AlertTitle>{t('errorLoadingDrivers')}</AlertTitle>
           <AlertDescriptionComponent>
-            There was a problem loading your drivers. Please try again later.
+            {t('errorLoadingDriversDescription')}
           </AlertDescriptionComponent>
         </Alert>
       )}
@@ -240,17 +242,17 @@ export default function DriversPage() {
                 )}
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="password">Temporary Login Code</Label>
+                <Label htmlFor="password">{t('temporaryLoginCode')}</Label>
                 <div className="flex items-center gap-2">
                     <Input id="password" readOnly value={generatedCode} className="font-mono text-lg" />
                     <Button type="button" variant="secondary" size="icon" onClick={() => {
                         navigator.clipboard.writeText(generatedCode);
-                        toast({ title: 'Code copied!' });
+                        toast({ title: t('codeCopied') });
                     }}>
                         <Copy className="h-4 w-4" />
                     </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">The driver will use this 6-digit code as their password to log in.</p>
+                <p className="text-xs text-muted-foreground">{t('temporaryLoginCodeDescription')}</p>
               </div>
             </div>
             <DialogFooter>

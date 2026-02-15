@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import {
@@ -162,11 +163,11 @@ export default function RoutesPage() {
     if (!firestore || !user) return;
     
     if (!source) {
-        toast({ variant: 'destructive', title: 'Missing Source', description: 'Please select a source location.' });
+        toast({ variant: 'destructive', title: t('missingSource'), description: t('missingSourceDescription') });
         return;
     }
     if (destinations.length === 0) {
-        toast({ variant: 'destructive', title: 'Missing Destination', description: 'Please select at least one destination.' });
+        toast({ variant: 'destructive', title: t('missingDestination'), description: t('missingDestinationDescription') });
         return;
     }
 
@@ -198,7 +199,7 @@ export default function RoutesPage() {
         console.error("Error saving route: ", error);
         toast({
             variant: 'destructive',
-            title: 'Error',
+            title: t('error'),
             description: 'Failed to save route.',
         });
     }
@@ -287,9 +288,9 @@ export default function RoutesPage() {
       <div className="p-4 md:p-8">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Access Denied</AlertTitle>
+          <AlertTitle>{t('accessDenied')}</AlertTitle>
           <AlertDescriptionComponent>
-            You do not have permission to view this page.
+            {t('noPermissionToViewPage')}
           </AlertDescriptionComponent>
         </Alert>
       </div>
@@ -316,8 +317,8 @@ export default function RoutesPage() {
         <div className="p-4 md:p-8">
             <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error Loading Routes</AlertTitle>
-                <AlertDescriptionComponent>Could not load your routes. Please check your connection and try again.</AlertDescriptionComponent>
+                <AlertTitle>{t('errorLoadingRoutes')}</AlertTitle>
+                <AlertDescriptionComponent>{t('couldNotLoadRoutesDescription')}</AlertDescriptionComponent>
             </Alert>
         </div>
     )
@@ -406,7 +407,7 @@ export default function RoutesPage() {
                  <div className="relative">
                     <Input
                         id="location-search"
-                        placeholder={!source ? "Search for starting point" : "Search for destination"}
+                        placeholder={!source ? t('searchForStartingPoint') : t('searchForDestination')}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         autoComplete="off"
@@ -488,7 +489,7 @@ export default function RoutesPage() {
                     name="rate_per_trip"
                     render={({ field }) => (
                         <FormItem className="grid grid-cols-2 items-center gap-2">
-                            <Label htmlFor="rate_per_trip" className="font-bold">Rate per Trip (₹)</Label>
+                            <Label htmlFor="rate_per_trip" className="font-bold">{t('ratePerTrip')}</Label>
                             <FormControl>
                                 <Input id="rate_per_trip" type="number" placeholder="e.g. 500" {...field} />
                             </FormControl>

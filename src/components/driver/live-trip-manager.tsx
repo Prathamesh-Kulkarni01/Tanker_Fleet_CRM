@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/auth';
@@ -57,8 +58,8 @@ export function LiveTripManager({ route, driver, onBack }: LiveTripManagerProps)
             await addDoc(collection(firestore, 'trips'), tripData);
             
             toast({ 
-                title: "Trip Logged!",
-                description: "Your timeline has been reset for the next trip."
+                title: t('tripLogged'),
+                description: t('timelineReset')
             });
             
             // Reset local state for the next trip
@@ -67,7 +68,7 @@ export function LiveTripManager({ route, driver, onBack }: LiveTripManagerProps)
 
         } catch (e) {
             console.error(e);
-            toast({ variant: 'destructive', title: t('error'), description: "Could not log trip." });
+            toast({ variant: 'destructive', title: t('error'), description: t('couldNotLogTrip') });
         } finally {
             setSubmittingAction(null);
         }
@@ -99,7 +100,7 @@ export function LiveTripManager({ route, driver, onBack }: LiveTripManagerProps)
                          <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0"><ArrowLeft/></Button>
                         <div>
                             <CardTitle className="text-2xl font-bold font-headline">{route.source} → {route.destinations.join(', ')}</CardTitle>
-                            <CardDescription className="text-base">Rate: ₹{route.rate_per_trip}/trip</CardDescription>
+                            <CardDescription className="text-base">{t('ratePerTripValue', { rate: route.rate_per_trip })}</CardDescription>
                         </div>
                     </div>
                 </CardHeader>
@@ -123,7 +124,7 @@ export function LiveTripManager({ route, driver, onBack }: LiveTripManagerProps)
                                     <div className="flex justify-between items-start">
                                         <div>
                                             <CardTitle className="text-xl">{step.name}</CardTitle>
-                                            <CardDescription>{step.type === 'source' ? t('source') : `${t('destination')} ${step.index}`}</CardDescription>
+                                            <CardDescription>{step.type === 'source' ? t('source') : t('destinationNumber', { number: step.index })}</CardDescription>
                                         </div>
                                         {isComplete && <CheckCircle className="text-green-500"/>}
                                     </div>
@@ -169,17 +170,17 @@ export function LiveTripManager({ route, driver, onBack }: LiveTripManagerProps)
             {allStepsComplete && (
                 <Card className="bg-green-500/10 border-green-500/50 text-center shadow-lg">
                     <CardHeader>
-                        <CardTitle>Ready to Log Trip?</CardTitle>
+                        <CardTitle>{t('readyToLogTrip')}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-muted-foreground mb-4">This will log the completed trip and reset the timeline for the next one.</p>
+                        <p className="text-muted-foreground mb-4">{t('readyToLogTripDescription')}</p>
                         <Button
                             size="lg"
                             className="bg-green-600 hover:bg-green-700 text-white"
                             onClick={handleLogAndResetTrip}
                             disabled={!!submittingAction}
                         >
-                            {submittingAction === 'log_trip' ? 'Logging...' : 'Log Trip & Start Next'}
+                            {submittingAction === 'log_trip' ? t('logging') : t('logTripAndStartNext')}
                         </Button>
                     </CardContent>
                 </Card>

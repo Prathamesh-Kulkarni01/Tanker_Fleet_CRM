@@ -1,3 +1,4 @@
+
 'use client';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -134,15 +135,15 @@ export default function SettingsPage() {
         try {
             await deleteDoc(doc(firestore, 'payoutSlabs', slabId));
             toast({
-              title: "Slab removed",
-              description: "The payout slab has been deleted.",
+              title: t('slabRemoved'),
+              description: t('slabRemovedDescription'),
             });
         } catch(e) {
             console.error("Error removing slab: ", e);
             toast({
               variant: 'destructive',
-              title: "Error",
-              description: "Could not remove slab from the database.",
+              title: t('error'),
+              description: t('couldNotRemoveSlab'),
             });
         }
     }
@@ -155,9 +156,9 @@ export default function SettingsPage() {
       <div className="p-4 md:p-8">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Access Denied</AlertTitle>
+          <AlertTitle>{t('accessDenied')}</AlertTitle>
           <AlertDescription>
-            You do not have permission to view this page.
+            {t('noPermissionToViewPage')}
           </AlertDescription>
         </Alert>
       </div>
@@ -165,7 +166,7 @@ export default function SettingsPage() {
   }
   
   if (slabsLoading) {
-      return <div className="p-4 md:p-8">Loading settings...</div>
+      return <div className="p-4 md:p-8">{t('loadingSettings')}</div>
   }
 
   return (
@@ -229,7 +230,7 @@ export default function SettingsPage() {
                                         name={`slabs.${index}.payout_amount`}
                                         render={({ field }) => (
                                             <FormItem>
-                                                <Label>{t('payoutAmount')} (₹)</Label>
+                                                <Label>{t('payoutAmount')}</Label>
                                                 <FormControl>
                                                     <Input type="number" placeholder="e.g. 5000" {...field} />
                                                 </FormControl>

@@ -1,3 +1,4 @@
+
 'use client';
 import { useParams } from 'next/navigation';
 import { LiveMap } from '@/components/driver/live-map';
@@ -6,11 +7,13 @@ import { useMemo } from 'react';
 import { useFirestore, useDoc } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useI18n } from '@/lib/i18n';
 
 export default function LiveTripPage() {
   const params = useParams();
   const tripId = params.tripId as string;
   const firestore = useFirestore();
+  const { t } = useI18n();
 
   const tripRef = useMemo(() => {
     if (!firestore || !tripId) return null;
@@ -29,7 +32,7 @@ export default function LiveTripPage() {
     return (
         <div className="flex h-screen w-full items-center justify-center">
             <Skeleton className="absolute inset-0" />
-            <p className="z-10 animate-pulse font-semibold">Loading Live Map...</p>
+            <p className="z-10 animate-pulse font-semibold">{t('loadingLiveMap')}</p>
         </div>
     );
   }
@@ -37,7 +40,7 @@ export default function LiveTripPage() {
   if (!trip || !route) {
     return (
         <div className="flex h-screen w-full items-center justify-center">
-            <p>Trip not found. Please log the trip first.</p>
+            <p>{t('tripNotFoundLogFirst')}</p>
         </div>
     );
   }

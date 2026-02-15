@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
@@ -126,7 +127,7 @@ export default function TripsPage() {
         console.error("Error saving trip:", error);
         toast({
             variant: 'destructive',
-            title: "Error",
+            title: t('error'),
             description: "Could not save the trip. Please try again."
         });
     }

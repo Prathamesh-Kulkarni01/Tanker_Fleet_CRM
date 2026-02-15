@@ -1,3 +1,4 @@
+
 'use client';
 import { notFound, useParams } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -129,9 +130,9 @@ export default function DriverPage() {
            <div className="p-4 md:p-8">
                 <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Error</AlertTitle>
+                    <AlertTitle>{t('error')}</AlertTitle>
                     <AlertDescription>
-                        { driverError ? "Could not load driver data." : "Driver not found."}
+                        { driverError ? t('couldNotLoadDriverData') : t('driverNotFound')}
                     </AlertDescription>
                 </Alert>
             </div>

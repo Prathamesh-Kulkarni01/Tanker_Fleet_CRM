@@ -1,3 +1,4 @@
+
 'use client';
 
 import { FleetMap } from '@/components/owner/fleet-map';
@@ -17,7 +18,7 @@ export default function FleetPage() {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>{t('accessDenied')}</AlertTitle>
           <AlertDescription>
-            {t('noPermissionToView')}
+            {t('noPermissionToViewPage')}
           </AlertDescription>
         </Alert>
       </div>

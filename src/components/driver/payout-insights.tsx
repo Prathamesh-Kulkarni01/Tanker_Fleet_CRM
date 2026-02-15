@@ -1,3 +1,4 @@
+
 'use client';
 
 import { getDriverInsights } from '@/lib/actions';
@@ -107,7 +108,7 @@ export function PayoutInsights({ driver, allTrips, routes, slabs }: PayoutInsigh
             </ul>
           </div>
         ) : (
-          <p>No specific insights available at this time. Keep up the good work!</p>
+          <p>{t('noInsightsAvailable')}</p>
         )}
       </CardContent>
     </Card>

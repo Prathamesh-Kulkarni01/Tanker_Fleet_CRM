@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -15,20 +16,20 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, Truck } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 
-const registerSchema = z.object({
-    name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-    phone: z.string().regex(/^\d{10}$/, { message: "Must be a 10-digit phone number." }),
-    password: z.string().min(6, { message: "Password must be at least 6 characters." }),
-});
-
-type RegisterFormValues = z.infer<typeof registerSchema>;
-
-export default function RegisterPage() {
+const RegisterPage = () => {
   const { t } = useI18n();
   const router = useRouter();
   const { registerOwner } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  
+  const registerSchema = z.object({
+    name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+    phone: z.string().regex(/^\d{10}$/, { message: "Must be a 10-digit phone number." }),
+    password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+  });
+  
+  type RegisterFormValues = z.infer<typeof registerSchema>;
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -44,10 +45,10 @@ export default function RegisterPage() {
         // A new user is redirected to /renew because they have no subscription.
         router.replace('/dashboard');
       } else {
-        setError(result.error || 'Registration failed.');
+        setError(result.error || t('registrationFailed'));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+      setError(err instanceof Error ? err.message : t('anErrorOccurred'));
     } finally {
       setLoading(false);
     }
@@ -104,3 +105,5 @@ export default function RegisterPage() {
     </div>
   );
 }
+
+export default RegisterPage;

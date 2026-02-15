@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -14,19 +15,19 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, KeyRound } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 
-const renewSchema = z.object({
-  subscriptionKey: z.string().min(1, { message: 'Subscription key is required.' }),
-});
-
-type RenewFormValues = z.infer<typeof renewSchema>;
-
-export default function RenewPage() {
+const RenewPage = () => {
   const { t } = useI18n();
   const router = useRouter();
   const { user, renewSubscription, logout } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const hasSubscription = user?.subscriptionExpiresAt && new Date(user.subscriptionExpiresAt) > new Date();
+
+  const renewSchema = z.object({
+    subscriptionKey: z.string().min(1, { message: t('subscriptionKeyRequired') }),
+  });
+  
+  type RenewFormValues = z.infer<typeof renewSchema>;
 
   const form = useForm<RenewFormValues>({
     resolver: zodResolver(renewSchema),
@@ -40,17 +41,17 @@ export default function RenewPage() {
       if (result.success) {
         router.replace('/dashboard');
       } else {
-        setError(result.error || 'Failed to renew subscription.');
+        setError(result.error || t('failedToRenewSubscription'));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+      setError(err instanceof Error ? err.message : t('anErrorOccurred'));
     } finally {
       setLoading(false);
     }
   };
   
   const title = hasSubscription ? t('renewYourSubscription') : t('subscriptionExpired');
-  const description = hasSubscription ? t('yourCurrentPlanWillExpire') : (user?.subscriptionExpiresAt ? t('enterNewKey') : 'Please contact an admin to get a key for your new account.');
+  const description = hasSubscription ? t('yourCurrentPlanWillExpire') : (user?.subscriptionExpiresAt ? t('enterNewKey') : t('contactAdminForNewKey'));
 
 
   return (
@@ -91,3 +92,5 @@ export default function RenewPage() {
     </div>
   );
 }
+
+export default RenewPage;

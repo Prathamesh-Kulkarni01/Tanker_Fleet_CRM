@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -65,16 +66,16 @@ export default function AdminPage() {
             });
 
             toast({
-                title: 'Subscription Activated',
-                description: `${activatingOwner.name}'s account has been activated for 1 year.`,
+                title: t('subscriptionActivated'),
+                description: t('subscriptionActivatedDescription', { name: activatingOwner.name }),
             });
 
         } catch (error) {
             console.error("Error activating subscription: ", error);
             toast({
                 variant: 'destructive',
-                title: 'Error',
-                description: 'Failed to activate subscription.',
+                title: t('error'),
+                description: t('failedToActivateSubscription'),
             });
         } finally {
             setIsSubmitting(false);
@@ -103,25 +104,25 @@ export default function AdminPage() {
             
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Users /> Owners</CardTitle>
-                    <CardDescription>Manage owner accounts and subscriptions.</CardDescription>
+                    <CardTitle className="flex items-center gap-2"><Users /> {t('owners')}</CardTitle>
+                    <CardDescription>{t('manageOwnerAccounts')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     {ownersLoading ? (
-                        <p>Loading owners...</p>
+                        <p>{t('loadingOwners')}</p>
                     ) : ownersError ? (
                         <Alert variant="destructive">
                             <AlertCircle className="h-4 w-4" />
-                            <AlertTitle>Error</AlertTitle>
-                            <AlertDescription>Failed to load owners.</AlertDescription>
+                            <AlertTitle>{t('error')}</AlertTitle>
+                            <AlertDescription>{t('failedToLoadOwners')}</AlertDescription>
                         </Alert>
                     ) : (
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Owner</TableHead>
-                                    <TableHead>Subscription Status</TableHead>
-                                    <TableHead className="text-right">Action</TableHead>
+                                    <TableHead>{t('owner')}</TableHead>
+                                    <TableHead>{t('subscriptionStatus')}</TableHead>
+                                    <TableHead className="text-right">{t('action')}</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -139,23 +140,23 @@ export default function AdminPage() {
                                             {isSubscribed ? (
                                                 <Badge variant="secondary" className="text-green-600 border-green-200">
                                                     <BadgeCheck className="mr-1 h-4 w-4"/>
-                                                    Active until {format(expiryDate!, 'PP')}
+                                                    {t('activeUntil', { date: format(expiryDate!, 'PP') })}
                                                 </Badge>
                                             ) : (
                                                 <Badge variant="destructive">
                                                     <BadgeX className="mr-1 h-4 w-4"/>
-                                                    No Subscription
+                                                    {t('noSubscription')}
                                                 </Badge>
                                             )}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             {!isSubscribed ? (
                                                 <Button size="sm" onClick={() => setActivatingOwner(owner)}>
-                                                    Activate
+                                                    {t('activate')}
                                                 </Button>
                                             ) : (
                                                 <Button size="sm" variant="outline">
-                                                    Extend
+                                                    {t('extend')}
                                                 </Button>
                                             )}
                                         </TableCell>
@@ -171,15 +172,15 @@ export default function AdminPage() {
                 <AlertDialog open={!!activatingOwner} onOpenChange={() => setActivatingOwner(null)}>
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>Activate Subscription for {activatingOwner?.name}?</AlertDialogTitle>
+                            <AlertDialogTitle>{t('activateSubscriptionFor', { name: activatingOwner?.name })}</AlertDialogTitle>
                             <AlertDialogDescription>
-                                This will generate a new 1-year subscription and assign it to this owner. This action cannot be undone.
+                                {t('activateSubscriptionConfirmation')}
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                            <AlertDialogCancel onClick={() => setActivatingOwner(null)} disabled={isSubmitting}>Cancel</AlertDialogCancel>
+                            <AlertDialogCancel onClick={() => setActivatingOwner(null)} disabled={isSubmitting}>{t('cancel')}</AlertDialogCancel>
                             <AlertDialogAction onClick={handleActivateSubscription} disabled={isSubmitting}>
-                                {isSubmitting ? 'Activating...' : 'Confirm & Activate'}
+                                {isSubmitting ? t('activating') : t('confirmAndActivate')}
                             </AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
