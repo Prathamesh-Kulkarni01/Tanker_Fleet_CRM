@@ -6,9 +6,8 @@ import { useFirestore, useDoc } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
-export default function LiveTripPage({ params }: { params: { tripId: string } }) {
+export default function LiveTripPage({ params: { tripId } }: { params: { tripId: string } }) {
   const firestore = useFirestore();
-  const { tripId } = params;
 
   const tripRef = useMemo(() => {
     if (!firestore || !tripId) return null;

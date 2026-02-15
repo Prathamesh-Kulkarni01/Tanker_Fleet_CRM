@@ -121,11 +121,10 @@ function DriverPageSkeleton() {
 }
 
 
-export default function DriverPage({ params }: { params: { driverId: string } }) {
+export default function DriverPage({ params: { driverId } }: { params: { driverId: string } }) {
   const { t } = useI18n();
   const { user } = useAuth();
   const firestore = useFirestore();
-  const { driverId } = params;
 
   const driverRef = useMemo(() => firestore ? doc(firestore, 'users', driverId) : null, [firestore, driverId]);
   const { data: driver, loading: driverLoading, error: driverError } = useDoc<Driver>(driverRef);

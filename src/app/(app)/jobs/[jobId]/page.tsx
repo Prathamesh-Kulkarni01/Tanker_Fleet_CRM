@@ -24,8 +24,7 @@ function JobPageSkeleton() {
     )
 }
 
-export default function JobPage({ params }: { params: { jobId: string } }) {
-    const { jobId } = params;
+export default function JobPage({ params: { jobId } }: { params: { jobId: string } }) {
     const { t } = useI18n();
     const { toast } = useToast();
     const firestore = useFirestore();
