@@ -1,15 +1,18 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import Map, { Marker, Popup, MapRef, type MapStyle } from 'react-map-gl/maplibre';
+import Map, { Marker, Popup, MapRef, type MapStyle, Source, Layer, type LineLayer } from 'react-map-gl/maplibre';
 import Link from 'next/link';
-import { drivers, trips, type Driver } from '@/lib/data';
+import { drivers, trips, type Driver, routes, type Route } from '@/lib/data';
 import { TruckMarker } from '../icons/truck-marker';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { useI18n } from '@/lib/i18n';
+import { MapPin } from 'lucide-react';
+import type { FeatureCollection, LineString } from 'geojson';
+
 
 type DriverPosition = {
   driver: Driver;
@@ -17,6 +20,7 @@ type DriverPosition = {
   latitude: number;
   heading: number;
   status: 'active' | 'idle';
+  route: Route | null;
 };
 
 // Simulate initial positions around a central point (e.g., Bangalore)
@@ -47,14 +51,40 @@ const osmStyle: MapStyle = {
 
 function getInitialPositions(): DriverPosition[] {
   const activeDrivers = drivers.filter(d => d.is_active);
-  return activeDrivers.map(driver => ({
-    driver,
-    longitude: initialCenter.longitude + (Math.random() - 0.5) * 0.2,
-    latitude: initialCenter.latitude + (Math.random() - 0.5) * 0.2,
-    heading: Math.random() * 360,
-    status: Math.random() > 0.3 ? 'active' : 'idle',
-  }));
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+
+  return activeDrivers.map(driver => {
+    // Find a trip for today for this driver
+    const tripToday = trips.find(t => t.driverId === driver.id && t.date === todayStr);
+
+    const route = tripToday ? routes.find(r => r.id === tripToday.routeId) || null : null;
+    const status = route ? 'active' : 'idle';
+
+    return {
+      driver,
+      longitude: initialCenter.longitude + (Math.random() - 0.5) * 0.2,
+      latitude: initialCenter.latitude + (Math.random() - 0.5) * 0.2,
+      heading: Math.random() * 360,
+      status: status,
+      route: route,
+    };
+  });
 }
+
+const routeLineLayer: LineLayer = {
+    id: 'route-lines',
+    type: 'line',
+    source: 'routes',
+    layout: {
+        'line-join': 'round',
+        'line-cap': 'round'
+    },
+    paint: {
+        'line-color': '#0ea5e9', // a nice blue color
+        'line-width': 2,
+        'line-dasharray': [2, 2],
+    }
+};
 
 export function FleetMap() {
   const { t } = useI18n();
@@ -98,10 +128,72 @@ export function FleetMap() {
       }
     });
     return tripCounts;
-  }, [todayStr, trips]);
+  }, [todayStr]);
   
   const activeDriversCount = driverPositions.filter(p => p.status === 'active').length;
   const idleDriversCount = driverPositions.filter(p => p.status === 'idle').length;
+
+  const routesGeoJSON: FeatureCollection<LineString> = useMemo(() => {
+    const features = driverPositions
+      .filter(p => p.route)
+      .map(p => {
+        const route = p.route!;
+        const coordinates = [
+          [route.sourceCoords.longitude, route.sourceCoords.latitude],
+          ...route.destCoords.map(d => [d.longitude, d.latitude])
+        ];
+        return {
+          type: 'Feature' as const,
+          properties: {
+              driverId: p.driver.id,
+          },
+          geometry: {
+            type: 'LineString' as const,
+            coordinates: coordinates,
+          },
+        };
+      });
+
+    return {
+      type: 'FeatureCollection',
+      features: features,
+    };
+  }, [driverPositions]);
+
+  // Unique set of source and destination markers to avoid duplicates on the map
+  const routePoints = useMemo(() => {
+    const points = new Map<string, {
+      type: 'source' | 'destination';
+      name: string;
+      longitude: number;
+      latitude: number;
+    }>();
+
+    driverPositions.forEach(p => {
+      if (p.route) {
+        const { route } = p;
+        const sourceKey = `${route.sourceCoords.longitude},${route.sourceCoords.latitude}`;
+        if (!points.has(sourceKey)) {
+          points.set(sourceKey, {
+            type: 'source',
+            name: route.source,
+            ...route.sourceCoords,
+          });
+        }
+        route.destCoords.forEach((dest, i) => {
+          const destKey = `${dest.longitude},${dest.latitude}`;
+          if (!points.has(destKey)) {
+            points.set(destKey, {
+              type: 'destination',
+              name: route.destinations[i],
+              ...dest
+            });
+          }
+        });
+      }
+    });
+    return Array.from(points.values());
+  }, [driverPositions]);
 
   return (
     <div className="relative h-full w-full">
@@ -112,6 +204,27 @@ export function FleetMap() {
         style={{ width: '100%', height: '100%' }}
         mapStyle={osmStyle}
       >
+        <Source id="routes" type="geojson" data={routesGeoJSON}>
+            <Layer {...routeLineLayer} />
+        </Source>
+
+        {/* Source and Destination Markers */}
+        {routePoints.map((point) => (
+            <Marker
+                key={`${point.name}-${point.longitude}`}
+                longitude={point.longitude}
+                latitude={point.latitude}
+                anchor="bottom"
+                onClick={(e) => { e.originalEvent.stopPropagation(); }} // prevent map click
+            >
+                <div className="flex flex-col items-center">
+                    <MapPin className={point.type === 'source' ? "h-6 w-6 text-blue-600 fill-blue-400/80" : "h-6 w-6 text-red-600 fill-red-400/80"} />
+                    <span className="text-xs font-semibold bg-white/80 px-1.5 py-0.5 rounded-md shadow">{point.name}</span>
+                </div>
+            </Marker>
+        ))}
+
+
         {driverPositions.map(pos => (
           <Marker
             key={pos.driver.id}
@@ -141,6 +254,7 @@ export function FleetMap() {
               <div className="space-y-1.5 text-sm">
                   <p><Badge variant={selectedDriver.status === 'active' ? 'secondary' : 'outline'}>{t(selectedDriver.status)}</Badge></p>
                   <p>{t('todaysTrips')}: <span className="font-semibold">{todaysTripsByDriver[selectedDriver.driver.id] || 0}</span></p>
+                  {selectedDriver.route && <p className="text-xs">{selectedDriver.route.source} → {selectedDriver.route.destinations.join(', ')}</p>}
               </div>
               <Button size="sm" variant="link" asChild className="p-0 h-auto mt-3">
                   <Link href={`/drivers/${selectedDriver.driver.id}`}>{t('viewProfile')}</Link>

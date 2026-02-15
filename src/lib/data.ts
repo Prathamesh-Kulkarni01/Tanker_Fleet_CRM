@@ -17,6 +17,8 @@ export type Route = {
   destinations: string[];
   rate_per_trip: number;
   is_active: boolean;
+  sourceCoords: { longitude: number; latitude: number };
+  destCoords: { longitude: number; latitude: number }[];
 };
 
 export type Trip = {
@@ -57,10 +59,10 @@ export const slabs: Slab[] = [
 ];
 
 export const routes: Route[] = [
-    { id: 'r1', source: 'Main Plant', destinations: ['Corporate Park', 'Tech Tower'], rate_per_trip: 500, is_active: true },
-    { id: 'r2', source: 'City Reservoir', destinations: ['Residential Complex A', 'Residential Complex B', 'Downtown Market'], rate_per_trip: 450, is_active: true },
-    { id: 'r3', source: 'Main Plant', destinations: ['Industrial Zone', 'Port Warehouse'], rate_per_trip: 600, is_active: true },
-    { id: 'r4', source: 'Old Well', destinations: ['Old City', 'Heritage Village'], rate_per_trip: 400, is_active: false },
+    { id: 'r1', source: 'Main Plant', destinations: ['Corporate Park', 'Tech Tower'], rate_per_trip: 500, is_active: true, sourceCoords: { longitude: 77.60, latitude: 12.95 }, destCoords: [{ longitude: 77.65, latitude: 12.98 }, { longitude: 77.66, latitude: 12.99 }] },
+    { id: 'r2', source: 'City Reservoir', destinations: ['Residential Complex A', 'Residential Complex B', 'Downtown Market'], rate_per_trip: 450, is_active: true, sourceCoords: { longitude: 77.55, latitude: 12.92 }, destCoords: [{ longitude: 77.58, latitude: 12.90 }, { longitude: 77.59, latitude: 12.89 }, { longitude: 77.5946, latitude: 12.9716 }] },
+    { id: 'r3', source: 'Main Plant', destinations: ['Industrial Zone', 'Port Warehouse'], rate_per_trip: 600, is_active: true, sourceCoords: { longitude: 77.60, latitude: 12.95 }, destCoords: [{ longitude: 77.50, latitude: 13.00 }, { longitude: 77.48, latitude: 13.02 }] },
+    { id: 'r4', source: 'Old Well', destinations: ['Old City', 'Heritage Village'], rate_per_trip: 400, is_active: false, sourceCoords: { longitude: 77.62, latitude: 12.96 }, destCoords: [{ longitude: 77.63, latitude: 12.94 }, { longitude: 77.64, latitude: 12.93 }] },
 ];
 
 
