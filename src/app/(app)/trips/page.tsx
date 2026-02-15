@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { drivers, routes, Trip } from '@/lib/data';
+import { drivers, type Trip } from '@/lib/data';
 import { useI18n } from '@/lib/i18n';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -29,10 +29,20 @@ import { format } from 'date-fns';
 import Link from 'next/link';
 import { Map } from 'lucide-react';
 
+import { useAuth } from '@/contexts/auth';
+import { useFirestore } from '@/firebase';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { collection, query, where } from 'firebase/firestore';
+import type { Route } from '@/lib/data';
+
+
 export default function TripsPage() {
   const { t } = useI18n();
   const { toast } = useToast();
   const [recentTrips, setRecentTrips] = useState<any[]>([]);
+  const { user } = useAuth();
+  const firestore = useFirestore();
+
 
   useEffect(() => {
     const saved = localStorage.getItem('recentTrips');
@@ -72,12 +82,17 @@ export default function TripsPage() {
     mode: 'onChange',
   });
   
-  const activeRoutes = routes.filter(r => r.is_active);
   const activeDrivers = drivers.filter(d => d.is_active);
+
+  const activeRoutesQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'routes'), where('ownerId', '==', user.id), where('is_active', '==', true));
+  }, [firestore, user]);
+  const { data: activeRoutes, loading: routesLoading } = useCollection<Route>(activeRoutesQuery);
 
   const onSubmit = (data: TripFormValues) => {
     const driver = activeDrivers.find(d => d.id === data.driverId);
-    const route = activeRoutes.find(r => r.id === data.routeId);
+    const route = activeRoutes?.find(r => r.id === data.routeId);
 
     // This is a simulation. In a real app, you'd get a proper ID from the DB.
     const newTrip = {
@@ -158,12 +173,12 @@ export default function TripsPage() {
                       <FormLabel>{t('route')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                          <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder={t('selectRoute')} />
+                            <SelectTrigger disabled={routesLoading}>
+                                <SelectValue placeholder={routesLoading ? t('loadingRoutes') : t('selectRoute')} />
                             </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {activeRoutes.map((route) => (
+                          {activeRoutes?.map((route) => (
                             <SelectItem key={route.id} value={route.id}>
                               {route.source} → {route.destinations.join(', ')}
                             </SelectItem>

@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -14,7 +14,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
@@ -37,12 +36,16 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useI18n } from '@/lib/i18n';
 import { useToast } from '@/hooks/use-toast';
-import { routes as initialRoutes, trips, Route } from '@/lib/data';
-import { Plus, Edit, Trash2, ArrowRight, MapPin } from 'lucide-react';
+import { Plus, Edit, Trash2, ArrowRight, MapPin, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/auth';
 import { Alert, AlertTitle, AlertDescription as AlertDescriptionComponent } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
+import { useFirestore } from '@/firebase';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { collection, query, where, doc, addDoc, setDoc, updateDoc } from 'firebase/firestore';
+import type { Route } from '@/lib/data';
+import { Skeleton } from '@/components/ui/skeleton';
+
 
 const routeSchema = z.object({
   source: z.string().min(3, { message: 'Source must be at least 3 characters.' }),
@@ -56,9 +59,16 @@ export default function RoutesPage() {
   const { t } = useI18n();
   const { toast } = useToast();
   const { user } = useAuth();
-  const [routes, setRoutes] = useState<Route[]>(initialRoutes);
+  const firestore = useFirestore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
+
+  const routesQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'routes'), where('ownerId', '==', user.id));
+  }, [firestore, user]);
+  const { data: routes, loading: routesLoading, error: routesError } = useCollection<Route>(routesQuery);
+
 
   const form = useForm<RouteFormValues>({
     resolver: zodResolver(routeSchema),
@@ -80,43 +90,58 @@ export default function RoutesPage() {
     setIsDialogOpen(true);
   };
 
-  const handleDeactivateRoute = (routeId: string) => {
-    setRoutes(routes.map(r => r.id === routeId ? { ...r, is_active: false } : r));
-    toast({
-      title: t('routeDeactivated'),
-    });
+  const handleDeactivateRoute = async (routeId: string) => {
+    if (!firestore) return;
+    const routeRef = doc(firestore, 'routes', routeId);
+    try {
+      await updateDoc(routeRef, { is_active: false });
+      toast({
+        title: t('routeDeactivated'),
+      });
+    } catch (error) {
+       console.error("Error deactivating route: ", error);
+       toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to deactivate route.',
+      });
+    }
   };
   
-  const onSubmit = (data: RouteFormValues) => {
+  const onSubmit = async (data: RouteFormValues) => {
+    if (!firestore || !user) return;
+    
     const routeData = {
         ...data,
         destinations: data.destinations.split(',').map(d => d.trim()).filter(Boolean),
     };
 
-    if (editingRoute) {
-      // Edit existing route
-      setRoutes(routes.map(r => r.id === editingRoute.id ? { ...editingRoute, ...routeData, id: editingRoute.id } as Route : r));
-    } else {
-      // Add new route
-      const newRoute: Route = {
-        id: `r${routes.length + 1}`,
-        ...routeData,
-        is_active: true,
-      };
-      setRoutes([...routes, newRoute]);
+    try {
+        if (editingRoute) {
+          const routeRef = doc(firestore, 'routes', editingRoute.id);
+          await setDoc(routeRef, routeData, { merge: true });
+        } else {
+          const newRoute = {
+            ...routeData,
+            ownerId: user.id,
+            is_active: true,
+            sourceCoords: { latitude: 12.9716, longitude: 77.5946 },
+            destCoords: [{ latitude: 12.9716, longitude: 77.5946 }],
+          };
+          await addDoc(collection(firestore, 'routes'), newRoute);
+        }
+        toast({
+          title: t('routeSaved'),
+        });
+        setIsDialogOpen(false);
+    } catch (error) {
+        console.error("Error saving route: ", error);
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Failed to save route.',
+        });
     }
-    toast({
-      title: t('routeSaved'),
-    });
-    setIsDialogOpen(false);
-  };
-
-  const getRouteStats = (routeId: string) => {
-    const routeTrips = trips.filter(trip => trip.routeId === routeId);
-    const totalTrips = routeTrips.reduce((acc, trip) => acc + trip.count, 0);
-    const route = routes.find(r => r.id === routeId);
-    const totalRevenue = totalTrips * (route?.rate_per_trip || 0);
-    return { totalTrips, totalRevenue };
   };
 
   if (user?.role !== 'owner') {
@@ -133,6 +158,33 @@ export default function RoutesPage() {
     );
   }
 
+  if (routesLoading) {
+    return (
+        <div className="p-4 md:p-8 space-y-6">
+            <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-bold font-headline sm:text-3xl">{t('routes')}</h1>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <Skeleton className="h-40 w-full" />
+                <Skeleton className="h-40 w-full" />
+                <Skeleton className="h-40 w-full" />
+            </div>
+        </div>
+    )
+  }
+
+  if (routesError) {
+    return (
+        <div className="p-4 md:p-8">
+            <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error Loading Routes</AlertTitle>
+                <AlertDescriptionComponent>Could not load your routes. Please check your connection and try again.</AlertDescriptionComponent>
+            </Alert>
+        </div>
+    )
+  }
+
   return (
     <div className="p-4 md:p-8 space-y-6 pb-24 md:pb-8">
       <div className="flex items-center justify-between">
@@ -140,8 +192,7 @@ export default function RoutesPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {routes.map(route => {
-          const { totalTrips, totalRevenue } = getRouteStats(route.id);
+        {routes && routes.map(route => {
           return (
             <Card key={route.id} className={!route.is_active ? 'bg-muted/50' : ''}>
               <CardHeader>
@@ -158,16 +209,6 @@ export default function RoutesPage() {
                 </div>
                 <CardDescription>₹{route.rate_per_trip.toLocaleString('en-IN')} / {t('trip')}</CardDescription>
               </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">{t('totalTrips')}</p>
-                  <p className="text-lg font-bold">{totalTrips}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">{t('totalRevenue')}</p>
-                  <p className="text-lg font-bold">₹{totalRevenue.toLocaleString('en-IN')}</p>
-                </div>
-              </CardContent>
               <CardFooter className="flex justify-end gap-2">
                 <Button variant="ghost" size="sm" onClick={() => handleEditRoute(route)}>
                   <Edit className="mr-2 h-4 w-4" />
