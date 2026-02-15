@@ -354,7 +354,7 @@ export default function RoutesPage() {
                         <CardContent>
                             <div className="font-bold">₹{route.rate_per_trip.toLocaleString('en-IN')} / {t('trip')}</div>
                         </CardContent>
-                        <CardFooter className="flex justify-end gap-2">
+                        <CardFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                             <Button variant="ghost" size="sm" onClick={() => handleEditRoute(route)}>
                             <Edit className="mr-2 h-4 w-4" />
                             {t('edit')}
@@ -552,5 +552,7 @@ export default function RoutesPage() {
     </div>
   );
 }
+
+    
 
     
