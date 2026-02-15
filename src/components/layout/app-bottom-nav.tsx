@@ -7,6 +7,7 @@ import {
   Map,
   Compass,
   Truck,
+  KeyRound,
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -21,30 +22,45 @@ export function AppBottomNav() {
 
   if (!user) return null;
 
-  const navItems =
-    user.role === 'owner'
-      ? [
-          { href: '/dashboard', label: t('dashboard'), icon: LayoutDashboard },
-          { href: '/fleet', label: t('fleet'), icon: Compass },
-          { href: '/trips', label: t('tripEntry'), icon: Truck },
-          { href: '/drivers', label: t('drivers'), icon: Users },
-          { href: '/routes', label: t('routes'), icon: Map },
-          { href: '/reports', label: t('settlements'), icon: BookText },
-          { href: '/settings', label: t('settings'), icon: Settings },
-        ]
-      : [
-          {
-            href: `/drivers/${user.id}`,
-            label: t('dashboard'),
-            icon: LayoutDashboard,
-          },
-        ];
+  const baseOwnerItems = [
+    { href: '/dashboard', label: t('dashboard'), icon: LayoutDashboard },
+    { href: '/fleet', label: t('fleet'), icon: Compass },
+    { href: '/trips', label: t('tripEntry'), icon: Truck },
+    { href: '/drivers', label: t('drivers'), icon: Users },
+    { href: '/routes', label: t('routes'), icon: Map },
+    { href: '/reports', label: t('settlements'), icon: BookText },
+    { href: '/settings', label: t('settings'), icon: Settings },
+  ];
 
+  const getNavItems = () => {
+    if (user.role === 'driver') {
+      return [
+        {
+          href: `/drivers/${user.id}`,
+          label: t('dashboard'),
+          icon: LayoutDashboard,
+        },
+      ];
+    }
+    
+    if (user.role === 'admin') {
+        // Prepend admin item
+        return [
+             { href: '/admin', label: t('admin'), icon: KeyRound },
+             ...baseOwnerItems
+        ];
+    }
+    
+    return baseOwnerItems;
+  };
+
+  const navItems = getNavItems();
+  
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/80 backdrop-blur-sm md:hidden">
       <div
-        className="grid h-16 items-stretch"
-        style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}
+        className="grid h-16 items-stretch overflow-x-auto"
+        style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(64px, 1fr))` }}
       >
         {navItems.map((item) => {
           const isActive =
@@ -60,8 +76,8 @@ export function AppBottomNav() {
                 isActive && 'text-primary'
               )}
             >
-              <item.icon className="h-5 w-5" />
-              <span className="text-[11px] font-medium text-center">{item.label}</span>
+              <item.icon className="h-5 w-5 shrink-0" />
+              <span className="text-[11px] font-medium text-center break-words">{item.label}</span>
             </Link>
           );
         })}

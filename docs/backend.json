@@ -19,7 +19,8 @@
           "type": "string",
           "enum": [
             "owner",
-            "driver"
+            "driver",
+            "admin"
           ]
         },
         "isActive": {
