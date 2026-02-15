@@ -8,6 +8,12 @@ export type Driver = {
   phone: string;
   is_active: boolean;
   avatar?: ImagePlaceholder;
+  location?: {
+    latitude: number;
+    longitude: number;
+    heading: number;
+    timestamp: any; // Firestore Timestamp
+  };
 };
 
 export type Route = {

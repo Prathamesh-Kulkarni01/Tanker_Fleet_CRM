@@ -5,7 +5,6 @@ import ReactMapGL, { Marker, Popup, MapRef, type MapStyle, Source, Layer, type L
 import Link from 'next/link';
 import { type Driver, type Route, type Trip } from '@/lib/data';
 import { TruckMarker } from '../icons/truck-marker';
-import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -111,56 +110,32 @@ export function FleetMap() {
   }, [firestore, user]);
   const { data: allRoutes, loading: routesLoading } = useCollection<Route>(allRoutesQuery);
 
-  const routes = useMemo(() => {
-      if (!allRoutes) return [];
-      return allRoutes.filter(r => r.is_active);
-  }, [allRoutes]);
-
-
-  // Initialize driver positions once data is loaded
+  // Process drivers data to create positions for the map
   useEffect(() => {
-    if (drivers && todaysTrips && routes) {
-      const positions = drivers.map(driver => {
-        const tripToday = todaysTrips.find(t => t.driverId === driver.id);
-        const route = tripToday ? routes.find(r => r.id === tripToday.routeId) || null : null;
-        const status = route ? 'active' : 'idle';
+    if (drivers && todaysTrips && allRoutes) {
+      const positions: DriverPosition[] = [];
+      drivers.forEach(driver => {
+        // Only show drivers with a known location
+        if (driver.location?.latitude && driver.location?.longitude) {
+          const tripToday = todaysTrips.find(t => t.driverId === driver.id);
+          const route = tripToday ? allRoutes.find(r => r.id === tripToday.routeId) || null : null;
+          
+          // Consider driver active if they have a trip for today, otherwise idle.
+          const status = tripToday ? 'active' : 'idle';
 
-        return {
-          driver,
-          longitude: initialCenter.longitude + (Math.random() - 0.5) * 0.2,
-          latitude: initialCenter.latitude + (Math.random() - 0.5) * 0.2,
-          heading: Math.random() * 360,
-          status: status,
-          route: route,
-        };
+          positions.push({
+            driver,
+            longitude: driver.location.longitude,
+            latitude: driver.location.latitude,
+            heading: driver.location.heading || 0,
+            status: status,
+            route: route,
+          });
+        }
       });
       setDriverPositions(positions);
     }
-  }, [drivers, todaysTrips, routes]);
-
-
-  // Simulate live movement
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setDriverPositions(prevPositions =>
-        prevPositions.map(p => {
-          if (p.status === 'active') {
-            const move = (Math.random() - 0.5) * 0.002;
-            const angleRad = p.heading * (Math.PI / 180);
-            return {
-              ...p,
-              longitude: p.longitude + move * Math.cos(angleRad),
-              latitude: p.latitude + move * Math.sin(angleRad),
-              heading: p.heading + (Math.random() - 0.5) * 5,
-            };
-          }
-          return p;
-        })
-      );
-    }, 3000); // Update every 3 seconds
-
-    return () => clearInterval(interval);
-  }, []);
+  }, [drivers, todaysTrips, allRoutes]);
 
   const todaysTripsByDriver = useMemo(() => {
     if (!todaysTrips) return {};
@@ -175,10 +150,10 @@ export function FleetMap() {
   const idleDriversCount = driverPositions.filter(p => p.status === 'idle').length;
 
   const routesGeoJSON: FeatureCollection<LineString> = useMemo(() => {
-    const features = driverPositions
-      .filter(p => p.route)
-      .map(p => {
-        const route = p.route!;
+    if (!allRoutes) return { type: 'FeatureCollection', features: [] };
+    const features = allRoutes
+      .filter(route => route.is_active)
+      .map(route => {
         const coordinates = [
           [route.sourceCoords.longitude, route.sourceCoords.latitude],
           ...route.destCoords.map(d => [d.longitude, d.latitude])
@@ -186,7 +161,7 @@ export function FleetMap() {
         return {
           type: 'Feature' as const,
           properties: {
-              driverId: p.driver.id,
+              routeId: route.id,
           },
           geometry: {
             type: 'LineString' as const,
@@ -199,7 +174,7 @@ export function FleetMap() {
       type: 'FeatureCollection',
       features: features,
     };
-  }, [driverPositions]);
+  }, [allRoutes]);
 
   // Unique set of source and destination markers to avoid duplicates on the map
   const routePoints = useMemo(() => {
@@ -210,9 +185,10 @@ export function FleetMap() {
       latitude: number;
     }>();
 
-    driverPositions.forEach(p => {
-      if (p.route) {
-        const { route } = p;
+    if (!allRoutes) return [];
+
+    allRoutes.forEach(route => {
+      if (route.is_active) {
         const sourceKey = `${route.sourceCoords.longitude},${route.sourceCoords.latitude}`;
         if (!points.has(sourceKey)) {
           points.set(sourceKey, {
@@ -234,7 +210,7 @@ export function FleetMap() {
       }
     });
     return Array.from(points.values());
-  }, [driverPositions]);
+  }, [allRoutes]);
 
   const isLoading = driversLoading || tripsLoading || routesLoading;
 

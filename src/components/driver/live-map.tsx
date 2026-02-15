@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Map, {
   Marker,
   Source,
@@ -12,12 +12,14 @@ import type { LineLayer, LngLatLike, MapStyle } from 'maplibre-gl';
 import { useGeolocation } from '@/hooks/use-geolocation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { LocateFixed, Waypoints } from 'lucide-react';
+import { LocateFixed } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
 import { Route, Trip } from '@/lib/data';
 import { TruckMarker } from '../icons/truck-marker';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/auth';
+import { useFirestore } from '@/firebase';
+import { doc, updateDoc, Timestamp } from 'firebase/firestore';
 
 const lineLayer: LineLayer = {
   id: 'route-line',
@@ -65,6 +67,7 @@ interface LiveMapProps {
 export function LiveMap({ trip, route }: LiveMapProps) {
   const mapRef = useRef<MapRef>(null);
   const { user } = useAuth();
+  const firestore = useFirestore();
   const { position, error, speed, heading } = useGeolocation();
   const [viewState, setViewState] = useState({
     longitude: 77.5946, // Default to Bangalore
@@ -76,6 +79,19 @@ export function LiveMap({ trip, route }: LiveMapProps) {
   const [autoFollow, setAutoFollow] = useState(true);
 
   useEffect(() => {
+    // When the driver is on this page, update their location in Firestore
+    if (position && user && firestore && user.role === 'driver') {
+      const driverRef = doc(firestore, 'users', user.uid);
+      updateDoc(driverRef, {
+        location: {
+          latitude: position.latitude,
+          longitude: position.longitude,
+          heading: heading ?? 0,
+          timestamp: Timestamp.now(),
+        },
+      });
+    }
+    
     if (position) {
       const newPoint: LngLatLike = [position.longitude, position.latitude];
       setPath((prevPath) => [...prevPath, newPoint]);
@@ -92,7 +108,7 @@ export function LiveMap({ trip, route }: LiveMapProps) {
         });
       }
     }
-  }, [position, autoFollow]);
+  }, [position, autoFollow, user, firestore, heading]);
 
   const handleRecenter = () => {
     setAutoFollow(true);
