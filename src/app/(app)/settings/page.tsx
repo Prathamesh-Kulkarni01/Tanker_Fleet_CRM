@@ -18,7 +18,7 @@ import { useFirestore } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { query, collection, where, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import type { Slab } from '@/lib/data';
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 
 const slabSchema = z.object({
   id: z.string(),
