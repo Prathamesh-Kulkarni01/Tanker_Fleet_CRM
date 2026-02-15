@@ -29,6 +29,21 @@ export function AppSidebarNav() {
   const { user } = useAuth();
 
   if (!user) return null;
+  
+  if (user.role === 'admin') {
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={pathname.startsWith('/admin')} tooltip={t('admin')}>
+            <Link href="/admin">
+              <KeyRound />
+              <span>{t('admin')}</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    );
+  }
 
   if (user.role === 'driver') {
     return (
@@ -49,19 +64,9 @@ export function AppSidebarNav() {
     );
   }
 
-  // Owner & Admin view
+  // Owner view
   return (
     <SidebarMenu>
-      {user.role === 'admin' && (
-         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={pathname.startsWith('/admin')} tooltip={t('admin')}>
-            <Link href="/admin">
-              <KeyRound />
-              <span>{t('admin')}</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      )}
       <SidebarMenuItem>
         <SidebarMenuButton asChild isActive={pathname === '/dashboard'} tooltip={t('dashboard')}>
           <Link href="/dashboard">

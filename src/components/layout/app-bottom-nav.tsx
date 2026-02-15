@@ -33,6 +33,10 @@ export function AppBottomNav() {
   ];
 
   const getNavItems = () => {
+    if (user.role === 'admin') {
+        return [{ href: '/admin', label: t('admin'), icon: KeyRound }];
+    }
+
     if (user.role === 'driver') {
       return [
         {
@@ -41,14 +45,6 @@ export function AppBottomNav() {
           icon: LayoutDashboard,
         },
       ];
-    }
-    
-    if (user.role === 'admin') {
-        // Prepend admin item
-        return [
-             { href: '/admin', label: t('admin'), icon: KeyRound },
-             ...baseOwnerItems
-        ];
     }
     
     return baseOwnerItems;

@@ -23,7 +23,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user) {
-      if (user.role === 'owner') {
+      if (user.role === 'admin') {
+        router.replace('/admin');
+      } else if (user.role === 'owner') {
         router.replace('/dashboard');
       } else if (user.role === 'driver') {
         router.replace(`/drivers/${user.id}`);
