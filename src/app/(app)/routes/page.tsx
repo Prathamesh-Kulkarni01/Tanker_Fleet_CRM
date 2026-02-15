@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import {
   Card,
   CardContent,
@@ -45,7 +45,8 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, doc, addDoc, setDoc, updateDoc } from 'firebase/firestore';
 import type { Route } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
-
+import Map, { Marker, MapRef, type MapStyle, LngLatLike } from 'react-map-gl/maplibre';
+import { cn } from '@/lib/utils';
 
 const routeSchema = z.object({
   source: z.string().min(3, { message: 'Source must be at least 3 characters.' }),
@@ -55,6 +56,27 @@ const routeSchema = z.object({
 
 type RouteFormValues = z.infer<typeof routeSchema>;
 
+const osmStyle: MapStyle = {
+  version: 8,
+  sources: {
+    osm: {
+      type: 'raster',
+      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      attribution:
+        '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    },
+  },
+  layers: [
+    {
+      id: 'osm',
+      type: 'raster',
+      source: 'osm',
+    },
+  ],
+};
+
+
 export default function RoutesPage() {
   const { t } = useI18n();
   const { toast } = useToast();
@@ -62,6 +84,18 @@ export default function RoutesPage() {
   const firestore = useFirestore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
+
+  // State for map interactions
+  const [selectionMode, setSelectionMode] = useState<'source' | 'destination'>('source');
+  const [sourceCoords, setSourceCoords] = useState<{latitude: number, longitude: number} | null>(null);
+  const [destCoords, setDestCoords] = useState<{latitude: number, longitude: number}[]>([]);
+  const mapRef = useRef<MapRef>(null);
+
+  const initialViewState = {
+    longitude: 73.8567, // Pune
+    latitude: 18.5204,
+    zoom: 10,
+  };
 
   const routesQuery = useMemo(() => {
     if (!firestore || !user) return null;
@@ -73,15 +107,24 @@ export default function RoutesPage() {
   const form = useForm<RouteFormValues>({
     resolver: zodResolver(routeSchema),
   });
+  
+  const resetMapState = () => {
+      setSourceCoords(null);
+      setDestCoords([]);
+      setSelectionMode('source');
+  }
 
   const handleAddRoute = () => {
     setEditingRoute(null);
+    resetMapState();
     form.reset({ source: '', destinations: '', rate_per_trip: 0 });
     setIsDialogOpen(true);
   };
 
   const handleEditRoute = (route: Route) => {
     setEditingRoute(route);
+    setSourceCoords(route.sourceCoords);
+    setDestCoords(route.destCoords || []);
     form.reset({ 
         source: route.source, 
         destinations: route.destinations.join(', '), 
@@ -111,22 +154,42 @@ export default function RoutesPage() {
   const onSubmit = async (data: RouteFormValues) => {
     if (!firestore || !user) return;
     
+    if (!sourceCoords) {
+        toast({ variant: 'destructive', title: 'Missing Location', description: 'Please select a source location on the map.' });
+        return;
+    }
+    const destinationNames = data.destinations.split(',').map(d => d.trim()).filter(Boolean);
+    if(destinationNames.length > 0 && destCoords.length === 0){
+        toast({ variant: 'destructive', title: 'Missing Location', description: 'Please select destination locations on the map.' });
+        return;
+    }
+    if (destinationNames.length !== destCoords.length) {
+        toast({
+            variant: 'destructive',
+            title: 'Mismatched Locations',
+            description: `You have entered ${destinationNames.length} destination names but selected ${destCoords.length} points on the map. Please ensure they match.`,
+        });
+        return;
+    }
+
     const routeData = {
         ...data,
-        destinations: data.destinations.split(',').map(d => d.trim()).filter(Boolean),
+        destinations: destinationNames,
+        sourceCoords,
+        destCoords,
     };
 
     try {
         if (editingRoute) {
           const routeRef = doc(firestore, 'routes', editingRoute.id);
-          await setDoc(routeRef, routeData, { merge: true });
+          // Omit ownerId and is_active from update data as they shouldn't be changed here.
+          const { ownerId, is_active, ...updateData } = { ...editingRoute, ...routeData };
+          await setDoc(routeRef, updateData, { merge: true });
         } else {
           const newRoute = {
             ...routeData,
             ownerId: user.id,
             is_active: true,
-            sourceCoords: { latitude: 12.9716, longitude: 77.5946 },
-            destCoords: [{ latitude: 12.9716, longitude: 77.5946 }],
           };
           await addDoc(collection(firestore, 'routes'), newRoute);
         }
@@ -143,6 +206,15 @@ export default function RoutesPage() {
         });
     }
   };
+
+  const handleMapClick = (e: mapboxgl.MapLayerMouseEvent) => {
+      const { lng, lat } = e.lngLat;
+      if (selectionMode === 'source') {
+          setSourceCoords({ latitude: lat, longitude: lng });
+      } else {
+          setDestCoords(prev => [...prev, { latitude: lat, longitude: lng }]);
+      }
+  }
 
   if (user?.role !== 'owner') {
     return (
@@ -259,34 +331,70 @@ export default function RoutesPage() {
       </Button>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>{editingRoute ? t('editRoute') : t('addRoute')}</DialogTitle>
           </DialogHeader>
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="source">Source (Filling Point)</Label>
-                <Input id="source" {...form.register('source')} />
-                {form.formState.errors.source && (
-                  <p className="text-sm text-destructive">{form.formState.errors.source.message}</p>
-                )}
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="destinations">Destinations (Delivery Points)</Label>
-                <Textarea id="destinations" {...form.register('destinations')} placeholder="e.g. Corporate Park, Tech Tower" />
-                <p className="text-xs text-muted-foreground">Enter multiple destinations separated by a comma.</p>
-                {form.formState.errors.destinations && (
-                  <p className="text-sm text-destructive">{form.formState.errors.destinations.message}</p>
-                )}
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="rate_per_trip">{t('ratePerTrip')}</Label>
-                <Input id="rate_per_trip" type="number" {...form.register('rate_per_trip')} />
-                 {form.formState.errors.rate_per_trip && (
-                  <p className="text-sm text-destructive">{form.formState.errors.rate_per_trip.message}</p>
-                )}
-              </div>
+            <div className="grid md:grid-cols-2 gap-6 py-4">
+                {/* Form Inputs Column */}
+                <div className="space-y-4">
+                    <div className="grid gap-2">
+                        <Label htmlFor="source">Source Name (Filling Point)</Label>
+                        <Input id="source" {...form.register('source')} />
+                        {form.formState.errors.source && (
+                        <p className="text-sm text-destructive">{form.formState.errors.source.message}</p>
+                        )}
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="destinations">Destination Names (Delivery Points)</Label>
+                        <Textarea id="destinations" {...form.register('destinations')} placeholder="e.g. Corporate Park, Tech Tower" />
+                        <p className="text-xs text-muted-foreground">Enter multiple destinations separated by a comma.</p>
+                        {form.formState.errors.destinations && (
+                        <p className="text-sm text-destructive">{form.formState.errors.destinations.message}</p>
+                        )}
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="rate_per_trip">{t('ratePerTrip')}</Label>
+                        <Input id="rate_per_trip" type="number" {...form.register('rate_per_trip')} />
+                        {form.formState.errors.rate_per_trip && (
+                        <p className="text-sm text-destructive">{form.formState.errors.rate_per_trip.message}</p>
+                        )}
+                    </div>
+                </div>
+
+                {/* Map Column */}
+                <div className="space-y-2">
+                    <Label>Set Locations on Map</Label>
+                    <div className="flex items-center gap-2">
+                        <Button type="button" size="sm" variant={selectionMode === 'source' ? 'default' : 'outline'} onClick={() => setSelectionMode('source')}>Set Source</Button>
+                        <Button type="button" size="sm" variant={selectionMode === 'destination' ? 'default' : 'outline'} onClick={() => setSelectionMode('destination')}>Add Destination</Button>
+                        <Button type="button" size="sm" variant="destructive" onClick={() => resetMapState()}>Clear Pins</Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground h-8">
+                        {selectionMode === 'source' ? 'Click on the map to place the source pin.' : `Click to add destination pin ${destCoords.length + 1}.`}
+                    </p>
+                    <div className="w-full h-64 rounded-md overflow-hidden relative bg-muted">
+                        <Map
+                           ref={mapRef}
+                           initialViewState={initialViewState}
+                           style={{width: '100%', height: '100%'}}
+                           mapStyle={osmStyle}
+                           onClick={handleMapClick}
+                           >
+                           {sourceCoords && (
+                                <Marker longitude={sourceCoords.longitude} latitude={sourceCoords.latitude}>
+                                    <MapPin className="h-6 w-6 text-blue-600 fill-blue-400/80" />
+                                </Marker>
+                           )}
+                           {destCoords.map((coords, index) => (
+                                <Marker key={index} longitude={coords.longitude} latitude={coords.latitude}>
+                                    <MapPin className="h-6 w-6 text-red-600 fill-red-400/80" />
+                                </Marker>
+                           ))}
+                        </Map>
+                    </div>
+                </div>
             </div>
             <DialogFooter>
               <DialogClose asChild>
