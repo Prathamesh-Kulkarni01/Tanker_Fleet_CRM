@@ -25,13 +25,14 @@ function JobPageSkeleton() {
 }
 
 export default function JobPage({ params }: { params: { jobId: string } }) {
+    const { jobId } = params;
     const { t } = useI18n();
     const { toast } = useToast();
     const firestore = useFirestore();
     const [notes, setNotes] = useState('');
     const [submittingAction, setSubmittingAction] = useState<string | null>(null);
 
-    const jobRef = useMemo(() => firestore ? doc(firestore, 'jobs', params.jobId) : null, [firestore, params.jobId]);
+    const jobRef = useMemo(() => firestore ? doc(firestore, 'jobs', jobId) : null, [firestore, jobId]);
     const { data: job, loading: jobLoading } = useDoc<Job>(jobRef);
 
     const routeRef = useMemo(() => (firestore && job) ? doc(firestore, 'routes', job.routeId) : null, [firestore, job]);
