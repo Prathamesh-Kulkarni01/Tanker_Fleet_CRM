@@ -46,6 +46,7 @@ import { collection, query, where, doc, addDoc, setDoc, updateDoc } from 'fireba
 import type { Route } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import Map, { Marker, MapRef, useControl, type MapStyle, LngLatLike } from 'react-map-gl/maplibre';
+import maplibregl from 'maplibre-gl';
 import MaplibreGeocoder from '@maplibre/maplibre-gl-geocoder';
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
 import { cn } from '@/lib/utils';
@@ -223,6 +224,7 @@ export default function RoutesPage() {
     useControl(
       () => {
         const ctrl = new MaplibreGeocoder({
+          maplibregl: maplibregl,
           marker: false,
           placeholder: 'Search for a location',
         });
