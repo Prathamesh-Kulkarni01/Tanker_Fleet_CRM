@@ -77,6 +77,12 @@ export default function AppLayout({
       return;
     }
 
+    // Role-based redirection for drivers
+    if (user.role === 'driver' && pathname !== `/drivers/${user.id}`) {
+        router.replace(`/drivers/${user.id}`);
+        return;
+    }
+
     // Subscription check for owners
     if (user.role === 'owner' && pathname !== '/renew') {
       if (user.subscriptionExpiresAt) {
