@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import Map, { Marker, Popup, MapRef, type MapStyle, Source, Layer, type LineLayer } from 'react-map-gl/maplibre';
+import ReactMapGL, { Marker, Popup, MapRef, type MapStyle, Source, Layer, type LineLayer } from 'react-map-gl/maplibre';
 import Link from 'next/link';
 import { drivers, trips, type Driver, routes, type Route } from '@/lib/data';
 import { TruckMarker } from '../icons/truck-marker';
@@ -197,7 +197,7 @@ export function FleetMap() {
 
   return (
     <div className="relative h-full w-full">
-      <Map
+      <ReactMapGL
         ref={mapRef}
         {...viewState}
         onMove={evt => setViewState(evt.viewState)}
@@ -262,7 +262,7 @@ export function FleetMap() {
             </div>
           </Popup>
         )}
-      </Map>
+      </ReactMapGL>
       <Card className="absolute top-4 left-4 w-auto max-w-sm">
         <CardHeader className="p-3">
             <CardTitle className="text-lg">{t('fleetOverview')}</CardTitle>
