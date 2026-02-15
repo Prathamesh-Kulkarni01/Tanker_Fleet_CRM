@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -45,9 +45,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, doc, addDoc, setDoc, updateDoc } from 'firebase/firestore';
 import type { Route } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
-import Map, { Marker, MapRef, useControl, type MapStyle, LngLatLike } from 'react-map-gl/maplibre';
-import maplibregl from 'maplibre-gl';
-import MaplibreGeocoder from '@maplibre/maplibre-gl-geocoder';
+import Map, { Marker, MapRef, type MapStyle } from 'react-map-gl/maplibre';
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
 import { cn } from '@/lib/utils';
 
@@ -93,6 +91,10 @@ export default function RoutesPage() {
   const [sourceCoords, setSourceCoords] = useState<{latitude: number, longitude: number} | null>(null);
   const [destCoords, setDestCoords] = useState<{latitude: number, longitude: number}[]>([]);
   const mapRef = useRef<MapRef>(null);
+
+  // NEW state for location search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<any[]>([]);
 
   const initialViewState = {
     longitude: 73.8567, // Pune
@@ -219,29 +221,51 @@ export default function RoutesPage() {
       }
   }
 
-  // Geocoder Component to be used inside the map
-  const Geocoder = () => {
-    useControl(
-      () => {
-        const ctrl = new MaplibreGeocoder({
-          maplibregl: maplibregl,
-          marker: false,
-          placeholder: 'Search for a location',
-        });
-        ctrl.on('result', (e) => {
-          const { result } = e;
-          const coords = result.geometry.coordinates;
-          mapRef.current?.flyTo({
-            center: [coords[0], coords[1]],
-            zoom: 14,
-          });
-        });
-        return ctrl;
-      },
-      { position: 'top-left' }
-    );
-    return null;
+  // Fetch location suggestions from Nominatim
+  useEffect(() => {
+    if (searchQuery.trim().length < 3) {
+      setSuggestions([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const { signal } = controller;
+
+    const handler = setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=json&limit=5`,
+          { signal }
+        );
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const data = await response.json();
+        setSuggestions(data);
+      } catch (error: any) {
+        if (error.name !== 'AbortError') {
+          console.error("Failed to fetch location suggestions:", error);
+          setSuggestions([]);
+        }
+      }
+    }, 300); // 300ms debounce
+
+    return () => {
+      clearTimeout(handler);
+      controller.abort();
+    };
+  }, [searchQuery]);
+
+  const handleSuggestionClick = (suggestion: any) => {
+    const { lat, lon } = suggestion;
+    mapRef.current?.flyTo({
+      center: [parseFloat(lon), parseFloat(lat)],
+      zoom: 14,
+    });
+    setSearchQuery('');
+    setSuggestions([]);
   };
+
 
   if (user?.role !== 'owner') {
     return (
@@ -392,38 +416,69 @@ export default function RoutesPage() {
                     </div>
 
                     {/* Map Column */}
-                    <div className="space-y-2">
-                        <Label>Set Locations on Map</Label>
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <Button type="button" size="sm" variant={selectionMode === 'source' ? 'default' : 'outline'} onClick={() => setSelectionMode('source')}>Set Source</Button>
-                            <Button type="button" size="sm" variant={selectionMode === 'destination' ? 'default' : 'outline'} onClick={() => setSelectionMode('destination')}>Add Destination</Button>
-                            <Button type="button" size="sm" variant="destructive" onClick={() => resetMapState()}>Clear Pins</Button>
-                        </div>
-                        <p className="text-xs text-muted-foreground h-8">
-                            {selectionMode === 'source' ? 'Click on the map to place the source pin.' : `Click to add destination pin ${destCoords.length + 1}.`}
-                        </p>
-                        <div className="w-full h-64 rounded-md overflow-hidden relative bg-muted">
-                            <Map
-                               ref={mapRef}
-                               initialViewState={initialViewState}
-                               style={{width: '100%', height: '100%'}}
-                               mapStyle={osmStyle}
-                               onClick={handleMapClick}
-                               >
-                               <Geocoder />
-                               {sourceCoords && (
-                                    <Marker longitude={sourceCoords.longitude} latitude={sourceCoords.latitude}>
-                                        <MapPin className="h-6 w-6 text-blue-600 fill-blue-400/80" />
-                                    </Marker>
-                               )}
-                               {destCoords.map((coords, index) => (
-                                    <Marker key={index} longitude={coords.longitude} latitude={coords.latitude}>
-                                        <MapPin className="h-6 w-6 text-red-600 fill-red-400/80" />
-                                    </Marker>
-                               ))}
-                            </Map>
-                        </div>
-                    </div>
+                    <div className="space-y-4">
+                      <div>
+                          <Label htmlFor="location-search">Location Search</Label>
+                          <div className="relative">
+                              <Input
+                                  id="location-search"
+                                  placeholder="Find a location on the map..."
+                                  value={searchQuery}
+                                  onChange={(e) => setSearchQuery(e.target.value)}
+                                  autoComplete="off"
+                              />
+                              {suggestions.length > 0 && (
+                                  <Card className="absolute z-20 w-full mt-1 max-h-60 overflow-y-auto">
+                                      <CardContent className="p-1">
+                                          {suggestions.map((suggestion) => (
+                                              <div
+                                                  key={suggestion.place_id}
+                                                  onMouseDown={() => handleSuggestionClick(suggestion)}
+                                                  className="p-2 text-sm rounded-sm hover:bg-accent cursor-pointer"
+                                              >
+                                                  {suggestion.display_name}
+                                              </div>
+                                          ))}
+                                      </CardContent>
+                                  </Card>
+                              )}
+                          </div>
+                      </div>
+
+                      <div>
+                          <Label>Set Locations on Map</Label>
+                          <div className="flex items-center gap-2 flex-wrap">
+                              <Button type="button" size="sm" variant={selectionMode === 'source' ? 'default' : 'outline'} onClick={() => setSelectionMode('source')}>Set Source</Button>
+                              <Button type="button" size="sm" variant={selectionMode === 'destination' ? 'default' : 'outline'} onClick={() => setSelectionMode('destination')}>Add Destination</Button>
+                              <Button type="button" size="sm" variant="destructive" onClick={() => { resetMapState(); setSearchQuery(''); setSuggestions([]);}}>Clear Pins</Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground h-8 pt-1">
+                              {selectionMode === 'source' ? 'Click on the map to place the source pin.' : `Click to add destination pin ${destCoords.length + 1}.`}
+                          </p>
+                      </div>
+
+                      <div className="w-full h-64 rounded-md overflow-hidden relative bg-muted">
+                          <Map
+                             ref={mapRef}
+                             initialViewState={initialViewState}
+                             style={{width: '100%', height: '100%'}}
+                             mapStyle={osmStyle}
+                             onClick={handleMapClick}
+                             >
+                             {sourceCoords && (
+                                  <Marker longitude={sourceCoords.longitude} latitude={sourceCoords.latitude}>
+                                      <MapPin className="h-6 w-6 text-blue-600 fill-blue-400/80" />
+                                  </Marker>
+                             )}
+                             {destCoords.map((coords, index) => (
+                                  <Marker key={index} longitude={coords.longitude} latitude={coords.latitude}>
+                                      <MapPin className="h-6 w-6 text-red-600 fill-red-400/80" />
+                                  </Marker>
+                             ))}
+                          </Map>
+                      </div>
+                  </div>
+
                 </div>
             </div>
             <DialogFooter className="pt-6">
