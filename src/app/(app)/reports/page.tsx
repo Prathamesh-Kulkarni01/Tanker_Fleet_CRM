@@ -164,6 +164,57 @@ export default function ReportsPage() {
   
   const { driverSettlements, totalRevenue, totalDeductions, totalPaid, netPayable, totalTrips } = settlementData;
 
+  const handleExport = () => {
+    if (!driverSettlements || driverSettlements.length === 0) {
+      toast({
+        title: t('nothingToExport'),
+        description: t('filterForDataToExport'),
+      });
+      return;
+    }
+
+    const csvRows = [];
+    const headers = ['Date', 'Driver Name', 'Route Name', 'Rate per Trip', 'Trip Count', 'Subtotal'];
+    csvRows.push(headers.join(','));
+
+    for (const settlement of driverSettlements) {
+      if (!settlement.driver) continue;
+
+      for (const trip of settlement.trips) {
+        const route = routes?.find(r => r.id === trip.routeId);
+        const subtotal = trip.count * (route?.rate_per_trip || 0);
+
+        const values = [
+          format(trip.date.toDate(), 'yyyy-MM-dd'),
+          settlement.driver.name,
+          route?.name || 'N/A',
+          route?.rate_per_trip || 0,
+          trip.count,
+          subtotal,
+        ].map(value => {
+            const stringValue = String(value).replace(/"/g, '""'); // Escape double quotes
+            return `"${stringValue}"`;
+        });
+        csvRows.push(values.join(','));
+      }
+    }
+
+    const csvString = csvRows.join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    
+    const dateStr = dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : 'all-time';
+    link.setAttribute('download', `settlement_report_${dateStr}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+
   const clearFilters = () => {
     setDateRange(undefined);
     setDriverIdFilter('all');
@@ -178,7 +229,7 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold font-headline sm:text-3xl">{t('settlementReport')}</h1>
-        <Button variant="outline" size="sm" className="gap-2">
+        <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}>
             <FileDown/>
             {t('export')}
         </Button>
@@ -408,7 +459,3 @@ export default function ReportsPage() {
     </div>
   );
 }
-
-    
-
-    
