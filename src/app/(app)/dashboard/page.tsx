@@ -14,6 +14,7 @@ import { query, collection, where, Timestamp } from 'firebase/firestore';
 import type { Driver, Route, Trip } from '@/lib/data';
 import { useMemo } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { OnboardingGuide } from '@/components/owner/OnboardingGuide';
 
 function DashboardSkeleton() {
     return (
@@ -138,8 +139,13 @@ export default function DashboardPage() {
   };
   
   const isLoading = tripsLoading || driversLoading || routesLoading;
+  
   if (isLoading) {
       return <DashboardSkeleton />;
+  }
+
+  if (!isLoading && (drivers?.length === 0 || routes?.length === 0)) {
+    return <OnboardingGuide driversCount={drivers?.length || 0} routesCount={routes?.length || 0} />;
   }
 
   return (
