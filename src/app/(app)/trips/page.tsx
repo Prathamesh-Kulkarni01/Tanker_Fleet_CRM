@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
@@ -19,7 +18,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { Trip, Route, Driver } from '@/lib/data';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import type { Trip, Route, Driver, Job } from '@/lib/data';
 import { useI18n } from '@/lib/i18n';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -28,11 +36,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import Link from 'next/link';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus, BellRing } from 'lucide-react';
 import { useAuth } from '@/contexts/auth';
 import { useFirestore } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, addDoc, Timestamp, limit, orderBy } from 'firebase/firestore';
+import { collection, query, where, addDoc, Timestamp, doc, updateDoc } from 'firebase/firestore';
 
 
 export default function TripsPage() {
@@ -40,6 +48,12 @@ export default function TripsPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const firestore = useFirestore();
+
+  // State for Assign Job Dialog
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [selectedDriver, setSelectedDriver] = useState('');
+  const [selectedRoute, setSelectedRoute] = useState('');
+  const [isSubmittingAssign, setIsSubmittingAssign] = useState(false);
 
   // Fetch all trips, then sort/slice on client to avoid composite index
   const allTripsQuery = useMemo(() => {
@@ -89,18 +103,27 @@ export default function TripsPage() {
     mode: 'onChange',
   });
   
-  // Fetch active drivers and routes for the dropdowns
+  // Fetch drivers and routes for the dropdowns
   const driversQuery = useMemo(() => {
     if (!firestore || !user) return null;
-    return query(collection(firestore, 'users'), where('ownerId', '==', user.uid), where('is_active', '==', true), where('role', '==', 'driver'));
+    return query(collection(firestore, 'users'), where('ownerId', '==', user.uid), where('role', '==', 'driver'));
   }, [firestore, user]);
-  const { data: activeDrivers, loading: driversLoading } = useCollection<Driver>(driversQuery);
+  const { data: allDrivers, loading: driversLoading } = useCollection<Driver>(driversQuery);
+  const activeDrivers = useMemo(() => allDrivers?.filter(d => d.is_active), [allDrivers]);
+
 
   const activeRoutesQuery = useMemo(() => {
     if (!firestore || !user) return null;
     return query(collection(firestore, 'routes'), where('ownerId', '==', user.id), where('is_active', '==', true));
   }, [firestore, user]);
   const { data: activeRoutes, loading: routesLoading } = useCollection<Route>(activeRoutesQuery);
+  
+  const requestedJobsQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'jobs'), where('ownerId', '==', user.uid), where('status', '==', 'requested'));
+  }, [firestore, user]);
+  const { data: requestedJobs, loading: requestedJobsLoading } = useCollection<Job>(requestedJobsQuery);
+
 
   const onSubmit = async (data: TripFormValues) => {
     if (!firestore || !user) return;
@@ -132,9 +155,52 @@ export default function TripsPage() {
         });
     }
   };
+
+  const handleAssignJob = async () => {
+    if (!firestore || !user || !selectedDriver || !selectedRoute) {
+        toast({ variant: 'destructive', title: t('error'), description: t('pleaseSelectDriverAndRoute') });
+        return;
+    }
+    setIsSubmittingAssign(true);
+    try {
+        const route = activeRoutes?.find(r => r.id === selectedRoute);
+        if (!route) throw new Error("Route not found");
+
+        await addDoc(collection(firestore, 'jobs'), {
+            ownerId: user.uid,
+            driverId: selectedDriver,
+            routeId: selectedRoute,
+            routeName: route.name || `${route.source} → ${route.destinations.join(', ')}`,
+            status: 'assigned',
+            assignedAt: Timestamp.now(),
+            events: [],
+        });
+        toast({ title: t('jobAssigned'), description: t('driverWillBeNotified') });
+        setIsAssignDialogOpen(false);
+        setSelectedDriver('');
+        setSelectedRoute('');
+    } catch (e) {
+        console.error(e);
+        toast({ variant: 'destructive', title: t('error'), description: t('couldNotAssignJob') });
+    } finally {
+        setIsSubmittingAssign(false);
+    }
+  };
+
+  const handleApproveRequest = async (jobId: string) => {
+    if (!firestore) return;
+    const jobRef = doc(firestore, 'jobs', jobId);
+    try {
+        await updateDoc(jobRef, { status: 'assigned' });
+        toast({ title: t('jobAssigned'), description: t('driverWillBeNotified') });
+    } catch (e) {
+        console.error("Error approving request: ", e);
+        toast({ variant: 'destructive', title: t('error'), description: t('couldNotAssignJob') });
+    }
+  };
   
   const getDriverName = (driverId: string) => {
-      return activeDrivers?.find(d => d.id === driverId)?.name || driverId;
+      return allDrivers?.find(d => d.id === driverId)?.name || driverId;
   }
   const getRouteName = (routeId: string) => {
       return activeRoutes?.find(r => r.id === routeId)?.name || routeId;
@@ -142,10 +208,45 @@ export default function TripsPage() {
 
   return (
     <div className="p-4 md:p-8 flex flex-col items-center gap-6">
+      
+      {requestedJobs && requestedJobs.length > 0 && (
+          <Card className="w-full max-w-lg">
+              <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BellRing />
+                    {t('jobRequests')}
+                  </CardTitle>
+                  <CardDescription>{t('jobRequestsDescription')}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                   {requestedJobs.map((job) => {
+                       const driver = allDrivers?.find(d => d.id === job.driverId);
+                       return (
+                            <div key={job.id} className="flex items-center justify-between gap-4 p-3 rounded-md bg-muted/50">
+                                <div className="flex-1">
+                                    <p className="font-semibold">{job.routeName}</p>
+                                    <p className="text-sm text-muted-foreground">{t('requestedBy', { name: driver?.name || '...' })}</p>
+                                </div>
+                                <Button onClick={() => handleApproveRequest(job.id)} size="sm" className="shrink-0">{t('approveAndAssign')}</Button>
+                            </div>
+                       )
+                   })}
+              </CardContent>
+          </Card>
+      )}
+
       <Card className="w-full max-w-lg">
         <CardHeader>
-          <CardTitle>{t('logNewTrips')}</CardTitle>
-          <CardDescription>{t('logNewTripsDescription')}</CardDescription>
+            <div className="flex justify-between items-start gap-4">
+                <div>
+                    <CardTitle>{t('logCompletedTrips')}</CardTitle>
+                    <CardDescription>{t('logCompletedTripsDescription')}</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setIsAssignDialogOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    {t('assignNewJob')}
+                </Button>
+            </div>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -266,6 +367,44 @@ export default function TripsPage() {
           </Card>
       )}
 
+      <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+          <DialogContent>
+              <DialogHeader>
+                  <DialogTitle>{t('assignNewJob')}</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                      <Label htmlFor="driver">{t('driver')}</Label>
+                      <Select value={selectedDriver} onValueChange={setSelectedDriver} disabled={driversLoading}>
+                          <SelectTrigger id="driver">
+                              <SelectValue placeholder={t('selectDriver')} />
+                          </SelectTrigger>
+                          <SelectContent>
+                              {activeDrivers?.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                          </SelectContent>
+                      </Select>
+                  </div>
+                  <div className="grid gap-2">
+                      <Label htmlFor="route">{t('route')}</Label>
+                      <Select value={selectedRoute} onValueChange={setSelectedRoute} disabled={routesLoading}>
+                          <SelectTrigger id="route">
+                              <SelectValue placeholder={t('selectRoute')} />
+                          </SelectTrigger>
+                          <SelectContent>
+                              {activeRoutes?.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+                          </SelectContent>
+                      </Select>
+                  </div>
+              </div>
+              <DialogFooter>
+                  <DialogClose asChild><Button variant="secondary">{t('cancel')}</Button></DialogClose>
+                  <Button onClick={handleAssignJob} disabled={isSubmittingAssign}>
+                      {isSubmittingAssign && <Loader2 className="animate-spin mr-2"/>}
+                      {t('assignJob')}
+                  </Button>
+              </DialogFooter>
+          </DialogContent>
+      </Dialog>
     </div>
   );
 }
