@@ -167,6 +167,10 @@
         "count": {
           "type": "number"
         },
+        "jobId": {
+          "type": "string",
+          "description": "The ID of the job this trip belongs to, if applicable."
+        },
         "events": {
           "type": "array",
           "description": "A log of events that occurred during this specific trip.",

@@ -5,17 +5,17 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PayoutInsights } from '@/components/driver/payout-insights';
 import { format, startOfMonth } from 'date-fns';
-import { Truck, DollarSign, Award, Map, AlertCircle, Briefcase } from 'lucide-react';
+import { Truck, DollarSign, Award, AlertCircle, Briefcase, Play, History } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/auth';
 import { useFirestore, useCollection, useDoc } from '@/firebase';
 import { collection, doc, query, where } from 'firebase/firestore';
-import type { Trip, Route, Slab, Driver } from '@/lib/data';
+import type { Trip, Route, Slab, Driver, Job } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { LiveTripManager } from '@/components/driver/live-trip-manager';
+import { DriverJobManager } from '@/components/driver/DriverJobManager';
 
 function DriverPageSkeleton() {
   return (
@@ -26,44 +26,44 @@ function DriverPageSkeleton() {
         </div>
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-40 w-full" />
     </div>
   )
 }
 
-function AvailableRoutes({ routes, onStartTrip }: { routes: Route[]; onStartTrip: (route: Route) => void; }) {
+function AssignedJobsList({ jobs, onStartJob, title, icon }: { jobs: Job[], onStartJob: (job: Job) => void, title: string, icon: React.ReactNode }) {
     const { t } = useI18n();
 
-    if (!routes || routes.length === 0) {
-        return (
-            <Card>
-                <CardContent className="p-6 text-center">
-                    <Briefcase className="mx-auto h-12 w-12 text-muted-foreground" />
-                    <h3 className="mt-4 text-lg font-medium">{t('noAvailableRoutes')}</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">{t('ownerHasNotAddedRoutes')}</p>
-                </CardContent>
-            </Card>
-        )
+    if (jobs.length === 0) {
+        return null;
     }
 
     return (
-        <div className="space-y-4">
-            {routes.map(route => (
-                 <Card key={route.id}>
-                    <CardHeader>
-                        <CardTitle>{route.name}</CardTitle>
-                        <CardDescription className="truncate" title={`${route.source} → ${route.destinations.join(', ')}`}>
-                            {route.source} → {route.destinations.join(', ')}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex items-center justify-between">
-                        <div className="font-bold">₹{route.rate_per_trip}/trip</div>
-                        <Button onClick={() => onStartTrip(route)}>
-                            {t('startTrip')}
-                        </Button>
-                    </CardContent>
-                </Card>
-            ))}
-        </div>
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    {icon}
+                    {title}
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {jobs.map(job => (
+                     <Card key={job.id} className="bg-muted/50">
+                        <CardHeader>
+                            <CardTitle>{job.routeName}</CardTitle>
+                            <CardDescription>
+                                {t('assignedOn')}: {format(job.assignedAt.toDate(), 'PP')}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex items-center justify-end">
+                            <Button onClick={() => onStartJob(job)}>
+                                {job.status === 'in_progress' ? t('resumeJob') : t('startJob')}
+                            </Button>
+                        </CardContent>
+                    </Card>
+                ))}
+            </CardContent>
+        </Card>
     )
 }
 
@@ -74,12 +74,24 @@ export default function DriverPage() {
   const { t } = useI18n();
   const { user } = useAuth();
   const firestore = useFirestore();
-  const [activeRoute, setActiveRoute] = useState<Route | null>(null);
+  const [activeJob, setActiveJob] = useState<Job | null>(null);
 
   const driverRef = useMemo(() => firestore ? doc(firestore, 'users', driverId) : null, [firestore, driverId]);
   const { data: driver, loading: driverLoading, error: driverError } = useDoc<Driver>(driverRef);
 
-  const ownerId = driver?.ownerId || user?.uid;
+  const jobsQuery = useMemo(() => {
+    if (!firestore || !driverId) return null;
+    return query(
+      collection(firestore, 'jobs'),
+      where('driverId', '==', driverId),
+      where('status', 'in', ['assigned', 'accepted', 'in_progress'])
+    );
+  }, [firestore, driverId]);
+  const { data: jobs, loading: jobsLoading } = useCollection<Job>(jobsQuery);
+
+  const assignedJobs = useMemo(() => jobs?.filter(j => j.status === 'assigned' || j.status === 'accepted').sort((a,b) => b.assignedAt.toDate() - a.assignedAt.toDate()) || [], [jobs]);
+  const inProgressJobs = useMemo(() => jobs?.filter(j => j.status === 'in_progress').sort((a,b) => b.assignedAt.toDate() - a.assignedAt.toDate()) || [], [jobs]);
+
 
   const allTripsQuery = useMemo(() => {
     if (!firestore || !driverId) return null;
@@ -91,15 +103,15 @@ export default function DriverPage() {
   const { data: allTrips, loading: tripsLoading } = useCollection<Trip>(allTripsQuery);
   
   const routesQuery = useMemo(() => {
-    if (!firestore || !ownerId) return null;
-    return query(collection(firestore, 'routes'), where('ownerId', '==', ownerId), where('is_active', '==', true));
-  }, [firestore, ownerId]);
+    if (!firestore || !driver?.ownerId) return null;
+    return query(collection(firestore, 'routes'), where('ownerId', '==', driver.ownerId), where('is_active', '==', true));
+  }, [firestore, driver?.ownerId]);
   const { data: routes, loading: routesLoading } = useCollection<Route>(routesQuery);
 
   const slabsQuery = useMemo(() => {
-    if (!firestore || !ownerId) return null;
-    return query(collection(firestore, 'payoutSlabs'), where('ownerId', '==', ownerId));
-  }, [firestore, ownerId]);
+    if (!firestore || !driver?.ownerId) return null;
+    return query(collection(firestore, 'payoutSlabs'), where('ownerId', '==', driver.ownerId));
+  }, [firestore, driver?.ownerId]);
   const { data: slabs, loading: slabsLoading } = useCollection<Slab>(slabsQuery);
 
 
@@ -115,14 +127,14 @@ export default function DriverPage() {
   }, [currentMonthTrips]);
   
   const { estimatedPayout } = useMemo(() => {
-    if (!slabs || slabs.length === 0) return { progressToNextSlab: 0 };
+    if (!slabs || slabs.length === 0) return { estimatedPayout: 0 };
     const sortedSlabs = [...slabs].sort((a, b) => a.min_trips - b.min_trips);
     const current = [...sortedSlabs].reverse().find((s) => totalTrips >= s.min_trips);
     const payout = current ? current.payout_amount : 0;
     return { estimatedPayout: payout };
   }, [totalTrips, slabs]);
 
-  const isLoading = driverLoading || tripsLoading || routesLoading || slabsLoading;
+  const isLoading = driverLoading || tripsLoading || routesLoading || slabsLoading || jobsLoading;
 
   if (isLoading) {
     return <DriverPageSkeleton />;
@@ -148,10 +160,17 @@ export default function DriverPage() {
       return notFound();
   }
   
-  if (activeRoute) {
-    return <LiveTripManager route={activeRoute} driver={driver} onBack={() => setActiveRoute(null)} />;
+  const activeJobRoute = activeJob ? routes?.find(r => r.id === activeJob.routeId) : null;
+  if (activeJob && activeJobRoute) {
+    return <DriverJobManager 
+      job={activeJob} 
+      route={activeJobRoute} 
+      driver={driver} 
+      onJobFinished={() => setActiveJob(null)} 
+    />;
   }
 
+  const noJobsAvailable = assignedJobs.length === 0 && inProgressJobs.length === 0;
 
   return (
     <div className="space-y-6">
@@ -168,20 +187,18 @@ export default function DriverPage() {
         <p className="text-muted-foreground">{t('welcomeBack')}</p>
       </div>
 
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Map className="w-5 h-5"/>
-                    {t('availableRoutes')}
-                </CardTitle>
-                <CardDescription>
-                    {t('startANewTripFromAvailableRoutes')}
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6">
-                <AvailableRoutes routes={routes || []} onStartTrip={setActiveRoute} />
-            </CardContent>
-        </Card>
+        {noJobsAvailable && (
+             <Card>
+                <CardContent className="p-6 text-center">
+                    <Briefcase className="mx-auto h-12 w-12 text-muted-foreground" />
+                    <h3 className="mt-4 text-lg font-medium">{t('noAssignedJobs')}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">{t('ownerHasNotAssignedJobs')}</p>
+                </CardContent>
+            </Card>
+        )}
+        
+        <AssignedJobsList jobs={inProgressJobs} onStartJob={setActiveJob} title={t('inProgressJobs')} icon={<History />} />
+        <AssignedJobsList jobs={assignedJobs} onStartJob={setActiveJob} title={t('todaysAssignedJobs')} icon={<Play />} />
 
         <Card>
             <CardHeader>

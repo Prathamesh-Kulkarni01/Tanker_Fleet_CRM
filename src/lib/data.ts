@@ -41,6 +41,7 @@ export type Trip = {
   driverId: string; // The driver's UID
   date: any; // Firestore Timestamp
   routeId: string;
+  jobId?: string;
   count: number;
   events?: TripEvent[];
 };

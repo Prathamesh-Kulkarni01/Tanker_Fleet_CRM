@@ -1,26 +1,27 @@
 
 'use client';
-import { useState } from 'react';
-import { useAuth } from '@/contexts/auth';
+import { useState, useEffect } from 'react';
 import { useFirestore } from '@/firebase';
-import { collection, addDoc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import type { Trip, Route, Driver, TripEvent } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Check, Anchor, MapPin, Pencil, Send, CheckCircle, Truck } from 'lucide-react';
+import { ArrowLeft, Check, Anchor, MapPin, Pencil, Send, CheckCircle, Truck, Flag, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import { DriverLocationUpdater } from './driver-location-updater';
+import type { Job } from '@/lib/data';
 
-interface LiveTripManagerProps {
+interface DriverJobManagerProps {
+    job: Job;
     route: Route;
     driver: Driver;
-    onBack: () => void;
+    onJobFinished: () => void;
 }
 
-export function LiveTripManager({ route, driver, onBack }: LiveTripManagerProps) {
+export function DriverJobManager({ job, route, driver, onJobFinished }: DriverJobManagerProps) {
     const { t } = useI18n();
     const { toast } = useToast();
     const firestore = useFirestore();
@@ -28,6 +29,15 @@ export function LiveTripManager({ route, driver, onBack }: LiveTripManagerProps)
     const [events, setEvents] = useState<TripEvent[]>([]);
     const [notes, setNotes] = useState('');
     const [submittingAction, setSubmittingAction] = useState<string | null>(null);
+
+    // On mount, update job status to in_progress if it was assigned/accepted
+    useEffect(() => {
+        if (firestore && (job.status === 'assigned' || job.status === 'accepted')) {
+            const jobRef = doc(firestore, 'jobs', job.id);
+            updateDoc(jobRef, { status: 'in_progress' });
+        }
+    }, [firestore, job.id, job.status]);
+
 
     const handleAction = (location: string, action: string) => {
         const newEvent: TripEvent = {
@@ -51,6 +61,7 @@ export function LiveTripManager({ route, driver, onBack }: LiveTripManagerProps)
                 ownerId: route.ownerId,
                 driverId: driver.id,
                 routeId: route.id,
+                jobId: job.id,
                 count: 1, // Each log is one trip
                 date: Timestamp.now(), // Log the trip at the time of completion
                 events: events, // Archive the events with the trip
@@ -73,6 +84,22 @@ export function LiveTripManager({ route, driver, onBack }: LiveTripManagerProps)
             setSubmittingAction(null);
         }
     };
+
+    const handleEndJob = async () => {
+        if (!firestore) return;
+        setSubmittingAction('end_job');
+        try {
+            const jobRef = doc(firestore, 'jobs', job.id);
+            await updateDoc(jobRef, { status: 'completed' });
+            toast({ title: t('jobCompleted'), description: t('jobMarkedAsComplete') });
+            onJobFinished();
+        } catch(e) {
+            console.error("Error completing job:", e);
+            toast({ variant: 'destructive', title: t('error'), description: t('couldNotCompleteJob') });
+        } finally {
+            setSubmittingAction(null);
+        }
+    }
     
     const timelineSteps = [
         { name: route.source, type: 'source' as const }, 
@@ -94,16 +121,21 @@ export function LiveTripManager({ route, driver, onBack }: LiveTripManagerProps)
         <div className="space-y-6">
             <DriverLocationUpdater />
 
-            <Card className="shadow-lg">
+            <Card className="shadow-lg sticky top-0 z-10">
                 <CardHeader>
                     <div className="flex items-center gap-2">
-                         <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0"><ArrowLeft/></Button>
                         <div>
-                            <CardTitle className="text-2xl font-bold font-headline">{route.name}</CardTitle>
-                            <CardDescription className="text-base">{route.source} → {route.destinations.join(', ')} | ₹{route.rate_per_trip}/trip</CardDescription>
+                            <CardTitle className="text-2xl font-bold font-headline">{job.routeName}</CardTitle>
+                            <CardDescription className="text-base">{route.source} → {route.destinations.join(', ')}</CardDescription>
                         </div>
                     </div>
                 </CardHeader>
+                 <CardContent>
+                    <Button onClick={handleEndJob} disabled={!!submittingAction}>
+                        {submittingAction === 'end_job' ? <Loader2 className="animate-spin" /> : <Flag/>}
+                        {t('finishJob')}
+                    </Button>
+                </CardContent>
             </Card>
             
             <div className="space-y-8">
@@ -180,7 +212,8 @@ export function LiveTripManager({ route, driver, onBack }: LiveTripManagerProps)
                             onClick={handleLogAndResetTrip}
                             disabled={!!submittingAction}
                         >
-                            {submittingAction === 'log_trip' ? t('logging') : t('logTripAndStartNext')}
+                            {submittingAction === 'log_trip' ? <Loader2 className="animate-spin" /> : <Truck/>}
+                            {t('logTripAndStartNext')}
                         </Button>
                     </CardContent>
                 </Card>
