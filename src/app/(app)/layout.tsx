@@ -18,16 +18,18 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <AppSidebar />
       <div className="flex flex-1 flex-col md:pl-14">
-        {!isMapPage && <AppHeader />}
+        <AppHeader />
         <main
           className={cn(
-            'relative flex-1',
-            !isMapPage && 'overflow-auto p-4 sm:px-6 md:p-8 pb-24 md:pb-8'
+            'flex-1',
+            isMapPage
+              ? 'relative'
+              : 'overflow-auto p-4 sm:px-6 md:p-8 pb-24 md:pb-8'
           )}
         >
           {children}
         </main>
-        {!isMapPage && <AppBottomNav />}
+        <AppBottomNav />
       </div>
     </SidebarProvider>
   );
