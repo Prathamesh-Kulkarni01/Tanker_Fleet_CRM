@@ -135,7 +135,7 @@ export default function JobsPage() {
                 ownerId: user.uid,
                 driverId: selectedDriver,
                 routeId: selectedRoute,
-                routeName: route.name,
+                routeName: route.name || `${route.source} → ${route.destinations.join(', ')}`,
                 status: 'assigned',
                 assignedAt: Timestamp.now(),
                 events: [],

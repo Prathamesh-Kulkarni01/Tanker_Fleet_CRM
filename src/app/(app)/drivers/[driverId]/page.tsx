@@ -164,7 +164,7 @@ export default function DriverPage() {
             ownerId: driver.ownerId,
             driverId: driver.id,
             routeId: route.id,
-            routeName: route.name,
+            routeName: route.name || `${route.source} → ${route.destinations.join(', ')}`,
             status: 'requested',
             assignedAt: Timestamp.now(),
             events: [],
@@ -250,7 +250,7 @@ export default function DriverPage() {
                                 return (
                                     <div key={route.id} className="flex items-center justify-between p-3 rounded-md bg-muted/50">
                                         <div>
-                                            <p className="font-semibold">{route.name}</p>
+                                            <p className="font-semibold">{route.name || `${route.source} → ${route.destinations.join(', ')}`}</p>
                                             <p className="text-sm text-muted-foreground">₹{route.rate_per_trip}/{t('trip')}</p>
                                         </div>
                                         <Button 
