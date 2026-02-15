@@ -19,7 +19,6 @@ const registerSchema = z.object({
     name: z.string().min(2, { message: "Name must be at least 2 characters." }),
     phone: z.string().regex(/^\d{10}$/, { message: "Must be a 10-digit phone number." }),
     password: z.string().min(6, { message: "Password must be at least 6 characters." }),
-    subscriptionKey: z.string().min(1, { message: "Subscription key is required." }),
 });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
@@ -41,6 +40,8 @@ export default function RegisterPage() {
     try {
       const result = await registerOwner(data);
       if (result.success) {
+        // On success, Firebase's onAuthStateChanged will handle redirection.
+        // A new user is redirected to /renew because they have no subscription.
         router.replace('/dashboard');
       } else {
         setError(result.error || 'Registration failed.');
@@ -79,12 +80,7 @@ export default function RegisterPage() {
               <Input id="password" type="password" {...form.register('password')} disabled={loading} />
               {form.formState.errors.password && <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="subscriptionKey">{t('subscriptionKey')}</Label>
-              <Input id="subscriptionKey" {...form.register('subscriptionKey')} disabled={loading} />
-              {form.formState.errors.subscriptionKey && <p className="text-sm text-destructive">{form.formState.errors.subscriptionKey.message}</p>}
-            </div>
-
+            
             {error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />

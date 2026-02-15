@@ -23,9 +23,10 @@ type RenewFormValues = z.infer<typeof renewSchema>;
 export default function RenewPage() {
   const { t } = useI18n();
   const router = useRouter();
-  const { renewSubscription, logout } = useAuth();
+  const { user, renewSubscription, logout } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const hasSubscription = user?.subscriptionExpiresAt && new Date(user.subscriptionExpiresAt) > new Date();
 
   const form = useForm<RenewFormValues>({
     resolver: zodResolver(renewSchema),
@@ -47,6 +48,10 @@ export default function RenewPage() {
       setLoading(false);
     }
   };
+  
+  const title = hasSubscription ? t('renewYourSubscription') : t('subscriptionExpired');
+  const description = hasSubscription ? t('yourCurrentPlanWillExpire') : (user?.subscriptionExpiresAt ? t('enterNewKey') : 'Please contact an admin to get a key for your new account.');
+
 
   return (
     <div className="flex min-h-full items-center justify-center bg-background p-4">
@@ -55,8 +60,8 @@ export default function RenewPage() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10 text-destructive">
             <KeyRound className="h-8 w-8" />
           </div>
-          <CardTitle className="text-2xl">{t('subscriptionExpired')}</CardTitle>
-          <CardDescription>{t('enterNewKey')}</CardDescription>
+          <CardTitle className="text-2xl">{title}</CardTitle>
+          <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

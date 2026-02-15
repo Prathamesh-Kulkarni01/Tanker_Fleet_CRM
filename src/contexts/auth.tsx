@@ -17,7 +17,7 @@ export type User = {
   uid: string;
   id: string; // Legacy ID for routing (e.g., 'd1', 'owner-1')
   name: string;
-  role: 'owner' | 'driver';
+  role: 'owner' | 'driver' | 'admin';
   subscriptionExpiresAt?: string; // ISO string format
 };
 
@@ -25,7 +25,6 @@ interface RegisterOwnerParams {
   name: string;
   phone: string;
   password: any;
-  subscriptionKey: string;
 }
 
 interface AuthContextType {
@@ -120,48 +119,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const registerOwner = async ({ name, phone, password, subscriptionKey }: RegisterOwnerParams): Promise<{ success: boolean; error?: string }> => {
+  const registerOwner = async ({ name, phone, password }: RegisterOwnerParams): Promise<{ success: boolean; error?: string }> => {
     if (!auth || !firestore) {
       return { success: false, error: 'Services not available.' };
     }
 
     try {
-      // 1. Validate the subscription key
-      const keyRef = doc(firestore, 'subscriptionKeys', subscriptionKey);
-      const keyDoc = await getDoc(keyRef);
-
-      if (!keyDoc.exists()) {
-        return { success: false, error: 'Invalid subscription key.' };
-      }
-
-      const keyData = keyDoc.data();
-      if (keyData.isUsed) {
-        return { success: false, error: 'This subscription key has already been used.' };
-      }
-
-      // 2. Create user in Firebase Auth
+      // 1. Create user in Firebase Auth
       const email = `${phone}@${DUMMY_EMAIL_DOMAIN}`;
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const newUser = userCredential.user;
 
-      // 3. Create user profile in Firestore
+      // 2. Create user profile in Firestore (without subscription details)
       const userDocRef = doc(firestore, 'users', newUser.uid);
       await setDoc(userDocRef, {
-        id: `owner-${newUser.uid.slice(0, 5)}`, // Create a simple unique ID
+        id: `owner-${newUser.uid.slice(0, 5)}`,
         name,
         phone,
         role: 'owner',
         isActive: true,
-        subscriptionKey,
-        subscriptionExpiresAt: keyData.expiresAt,
+        // No subscription details are set on registration
       });
-
-      // 4. Mark subscription key as used
-      await updateDoc(keyRef, {
-        isUsed: true,
-        usedBy: newUser.uid,
-      });
-
+      
       // onAuthStateChanged will handle the rest
       return { success: true };
     } catch (error: any) {
