@@ -37,7 +37,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useI18n } from '@/lib/i18n';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, ArrowRight, MapPin, AlertCircle, LocateFixed, X, ArrowDown, ArrowUp, GripVertical, Map } from 'lucide-react';
+import { Plus, Edit, Trash2, ArrowRight, MapPin, AlertCircle, LocateFixed, X, ArrowDown, ArrowUp, Map, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth';
 import { Alert, AlertTitle, AlertDescription as AlertDescriptionComponent } from '@/components/ui/alert';
 import { useFirestore, useCollection } from '@/firebase';
@@ -48,6 +48,7 @@ import MapGL, { Marker, MapRef, type MapStyle } from 'react-map-gl/maplibre';
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
 import { cn } from '@/lib/utils';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
+import { getRouteNameSuggestion } from '@/lib/actions';
 
 
 const routeSchema = z.object({
@@ -102,6 +103,9 @@ export default function RoutesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState<any[]>([]);
 
+  const [isGeneratingName, setIsGeneratingName] = useState(false);
+  const [isNameManuallyEdited, setIsNameManuallyEdited] = useState(false);
+
   const initialViewState = {
     longitude: 73.8567, // Pune
     latitude: 18.5204,
@@ -132,6 +136,7 @@ export default function RoutesPage() {
     setEditingRoute(null);
     resetMapState();
     form.reset({ name: '', rate_per_trip: 0 });
+    setIsNameManuallyEdited(false);
     setIsDialogOpen(true);
   };
 
@@ -140,6 +145,7 @@ export default function RoutesPage() {
     setSource({ name: route.source, coords: route.sourceCoords });
     setDestinations(route.destinations.map((name, i) => ({ name, coords: route.destCoords[i] })));
     form.reset({ name: route.name, rate_per_trip: route.rate_per_trip });
+    setIsNameManuallyEdited(!!route.name);
     setIsDialogOpen(true);
   };
 
@@ -242,6 +248,29 @@ export default function RoutesPage() {
       controller.abort();
     };
   }, [searchQuery]);
+
+  // Effect to suggest a route name
+  useEffect(() => {
+    // Only suggest if not editing an existing named route, and if we have a source/dest
+    if (isDialogOpen && !isNameManuallyEdited && source && destinations.length > 0) {
+      const suggestName = async () => {
+        setIsGeneratingName(true);
+        const destNames = destinations.map(d => d.name);
+        const result = await getRouteNameSuggestion(source.name, destNames);
+        if (result.success && result.data?.routeName) {
+          // Check if user has started typing while we were fetching
+          if (!form.getValues('name') && !isNameManuallyEdited) {
+            form.setValue('name', result.data.routeName, { shouldValidate: true });
+          }
+        }
+        setIsGeneratingName(false);
+      };
+      
+      const timer = setTimeout(suggestName, 1000); // Debounce to avoid rapid calls
+      return () => clearTimeout(timer);
+    }
+  }, [source, destinations, isDialogOpen, isNameManuallyEdited, form]);
+
 
   const handleSuggestionClick = (suggestion: any) => {
     const { lat, lon, display_name } = suggestion;
@@ -514,9 +543,22 @@ export default function RoutesPage() {
                             render={({ field }) => (
                                 <FormItem>
                                     <Label htmlFor="name">{t('routeName')}</Label>
-                                    <FormControl>
-                                        <Input id="name" placeholder={t('egWakadToHinjewadi')} {...field} />
-                                    </FormControl>
+                                    <div className="relative">
+                                      <FormControl>
+                                          <Input 
+                                            id="name" 
+                                            placeholder={isGeneratingName ? t('generatingSuggestion') : t('egWakadToHinjewadi')} 
+                                            {...field}
+                                            onChange={(e) => {
+                                                field.onChange(e);
+                                                setIsNameManuallyEdited(true);
+                                            }}
+                                          />
+                                      </FormControl>
+                                      {isGeneratingName && (
+                                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground animate-spin" />
+                                      )}
+                                    </div>
                                     <FormMessage />
                                 </FormItem>
                             )}

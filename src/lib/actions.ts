@@ -3,6 +3,7 @@
 import { driverPayoutInsights, DriverPayoutInsightsInput } from '@/ai/flows/driver-payout-insights-flow';
 import type { Trip, Slab } from '@/lib/data';
 import { format, getMonth, getYear } from 'date-fns';
+import { generateRouteName, GenerateRouteNameInput } from '@/ai/flows/generate-route-name-flow';
 
 
 export async function getDriverInsights(driverId: string, allTrips: (Omit<Trip, 'date'> & { date: string })[], slabs: Slab[], routes: {id: string, name: string}[]) {
@@ -81,4 +82,25 @@ export async function getDriverInsights(driverId: string, allTrips: (Omit<Trip, 
     console.error("Error getting driver insights:", error);
     return { success: false, error: error instanceof Error ? error.message : "An unknown error occurred" };
   }
+}
+
+export async function getRouteNameSuggestion(source: string, destinations: string[]) {
+    try {
+        if (!source || destinations.length === 0) {
+            throw new Error('Source and at least one destination are required.');
+        }
+
+        const input: GenerateRouteNameInput = {
+            source,
+            destinations,
+        };
+
+        const result = await generateRouteName(input);
+        
+        return { success: true, data: result };
+
+    } catch (error) {
+        console.error("Error getting route name suggestion:", error);
+        return { success: false, error: error instanceof Error ? error.message : "An unknown error occurred" };
+    }
 }
