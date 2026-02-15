@@ -45,7 +45,9 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, doc, addDoc, setDoc, updateDoc } from 'firebase/firestore';
 import type { Route } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
-import Map, { Marker, MapRef, type MapStyle, LngLatLike } from 'react-map-gl/maplibre';
+import Map, { Marker, MapRef, useControl, type MapStyle, LngLatLike } from 'react-map-gl/maplibre';
+import MaplibreGeocoder from '@maplibre/maplibre-gl-geocoder';
+import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
 import { cn } from '@/lib/utils';
 
 const routeSchema = z.object({
@@ -216,6 +218,29 @@ export default function RoutesPage() {
       }
   }
 
+  // Geocoder Component to be used inside the map
+  const Geocoder = () => {
+    useControl(
+      () => {
+        const ctrl = new MaplibreGeocoder({
+          marker: false,
+          placeholder: 'Search for a location',
+        });
+        ctrl.on('result', (e) => {
+          const { result } = e;
+          const coords = result.geometry.coordinates;
+          mapRef.current?.flyTo({
+            center: [coords[0], coords[1]],
+            zoom: 14,
+          });
+        });
+        return ctrl;
+      },
+      { position: 'top-left' }
+    );
+    return null;
+  };
+
   if (user?.role !== 'owner') {
     return (
       <div className="p-4 md:p-8">
@@ -383,6 +408,7 @@ export default function RoutesPage() {
                                mapStyle={osmStyle}
                                onClick={handleMapClick}
                                >
+                               <Geocoder />
                                {sourceCoords && (
                                     <Marker longitude={sourceCoords.longitude} latitude={sourceCoords.latitude}>
                                         <MapPin className="h-6 w-6 text-blue-600 fill-blue-400/80" />
