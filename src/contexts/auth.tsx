@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   signInWithEmailAndPassword,
@@ -91,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [auth, firestore]);
 
-  const login = async (phone: string, passwordOrCode: string): Promise<{ success: boolean; error?: string }> => {
+  const login = useCallback(async (phone: string, passwordOrCode: string): Promise<{ success: boolean; error?: string }> => {
     if (!auth || !firestore) {
       return { success: false, error: 'Auth service not available.' };
     }
@@ -131,9 +131,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return { success: false, error: errorMessage };
     }
-  };
+  }, [auth, firestore]);
 
-  const registerOwner = async ({ name, phone, password }: RegisterOwnerParams): Promise<{ success: boolean; error?: string }> => {
+  const registerOwner = useCallback(async ({ name, phone, password }: RegisterOwnerParams): Promise<{ success: boolean; error?: string }> => {
     if (!auth || !firestore) {
       return { success: false, error: 'Services not available.' };
     }
@@ -164,9 +164,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         return { success: false, error: 'Could not create account. Please try again.' };
     }
-  };
+  }, [auth, firestore]);
   
-  const renewSubscription = async (key: string): Promise<{ success: boolean; error?: string }> => {
+  const renewSubscription = useCallback(async (key: string): Promise<{ success: boolean; error?: string }> => {
     if (!firestore || !user) {
         return { success: false, error: 'User not logged in or services unavailable.' };
     }
@@ -205,26 +205,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('Subscription renewal error:', error);
         return { success: false, error: 'Failed to renew subscription.' };
     }
-  };
+  }, [firestore, user]);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     if (!auth) return;
     await signOut(auth);
     setUser(null); // Clear user state immediately
     router.push('/login');
-  };
+  }, [auth, router]);
 
-  const memoizedAuthContext = useCallback(() => ({
+  const value = useMemo(() => ({
       user,
       login,
       registerOwner,
       renewSubscription,
       logout,
       loading,
-  }), [user, loading, logout, renewSubscription, registerOwner, login]);
+  }), [user, loading, login, logout, registerOwner, renewSubscription]);
+
 
   return (
-    <AuthContext.Provider value={memoizedAuthContext()}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
