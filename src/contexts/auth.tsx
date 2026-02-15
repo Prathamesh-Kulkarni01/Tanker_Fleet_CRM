@@ -14,6 +14,7 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, Timestamp, collection, addDoc } from 'firebase/firestore';
 import { useFirebaseAuth, useFirestore } from '@/firebase';
+import { PlaceHolderImages, type ImagePlaceholder } from '@/lib/placeholder-images';
 
 // The user object we'll use in our app, combining Firebase Auth and Firestore data.
 export type User = {
@@ -184,12 +185,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userCredential = await createUserWithEmailAndPassword(tempAuth, email, password);
         const newDriverUser = userCredential.user;
 
+        const randomAvatar = PlaceHolderImages[Math.floor(Math.random() * PlaceHolderImages.length)];
+        
         const driverData = {
             name,
             phone,
             role: 'driver' as const,
             ownerId: user.uid,
             is_active: true,
+            avatar: randomAvatar,
         };
 
         const docRef = doc(firestore, 'users', newDriverUser.uid);

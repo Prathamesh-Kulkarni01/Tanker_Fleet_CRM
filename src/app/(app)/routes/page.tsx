@@ -40,7 +40,7 @@ import { Plus, Edit, Trash2, ArrowRight, MapPin, AlertCircle, LocateFixed, X, Ar
 import { useAuth } from '@/contexts/auth';
 import { Alert, AlertTitle, AlertDescription as AlertDescriptionComponent } from '@/components/ui/alert';
 import { useFirestore, useCollection } from '@/firebase';
-import { collection, query, where, doc, addDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, doc, addDoc, updateDoc } from 'firebase/firestore';
 import type { Route } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import Map, { Marker, MapRef, type MapStyle } from 'react-map-gl/maplibre';
@@ -181,8 +181,7 @@ export default function RoutesPage() {
     try {
         if (editingRoute) {
           const routeRef = doc(firestore, 'routes', editingRoute.id);
-          const { ownerId, is_active, ...updateData } = { ...editingRoute, ...routeData };
-          await setDoc(routeRef, updateData, { merge: true });
+          await updateDoc(routeRef, routeData);
         } else {
           const newRoute = {
             ...routeData,

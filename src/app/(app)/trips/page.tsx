@@ -27,7 +27,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import Link from 'next/link';
-import { Map, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth';
 import { useFirestore } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
@@ -246,7 +246,6 @@ export default function TripsPage() {
                                 <TableHead>{t('driver')}</TableHead>
                                 <TableHead>{t('route')}</TableHead>
                                 <TableHead className="text-right">{t('trips')}</TableHead>
-                                <TableHead className="text-right"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -258,14 +257,6 @@ export default function TripsPage() {
                                     </TableCell>
                                     <TableCell>{getRouteName(trip.routeId)}</TableCell>
                                     <TableCell className="text-right font-semibold">{trip.count}</TableCell>
-                                    <TableCell className="text-right">
-                                        <Button asChild variant="outline" size="sm">
-                                            <Link href={`/trips/live/${trip.id}`}>
-                                                <Map className="mr-2 h-4 w-4" />
-                                                Track
-                                            </Link>
-                                        </Button>
-                                    </TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
