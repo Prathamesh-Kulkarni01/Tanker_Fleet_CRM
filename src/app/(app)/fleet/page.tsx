@@ -25,7 +25,7 @@ export default function FleetPage() {
   }
 
   return (
-    <div className="flex-1 -m-4 sm:-mx-6 md:-m-8">
+    <div className="absolute inset-0">
       <FleetMap />
     </div>
   );
