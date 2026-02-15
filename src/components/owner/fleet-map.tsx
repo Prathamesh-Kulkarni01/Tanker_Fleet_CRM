@@ -219,7 +219,7 @@ export function FleetMap() {
             >
                 <div className="flex flex-col items-center">
                     <MapPin className={point.type === 'source' ? "h-6 w-6 text-blue-600 fill-blue-400/80" : "h-6 w-6 text-red-600 fill-red-400/80"} />
-                    <span className="text-xs font-semibold bg-white/80 px-1.5 py-0.5 rounded-md shadow">{point.name}</span>
+                    <span className="text-xs font-semibold bg-background/90 text-foreground px-1.5 py-0.5 rounded-md shadow-lg">{point.name}</span>
                 </div>
             </Marker>
         ))}
