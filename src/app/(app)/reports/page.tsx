@@ -211,7 +211,7 @@ export default function ReportsPage() {
             <SelectTrigger><SelectValue placeholder={t('selectRoute')} /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('allRoutes')}</SelectItem>
-              {routes?.map(route => <SelectItem key={route.id} value={route.id}>{route.source} → {route.destinations.join(', ')}</SelectItem>)}
+              {routes?.map(route => <SelectItem key={route.id} value={route.id}>{route.name}</SelectItem>)}
             </SelectContent>
           </Select>
           <Button variant="outline" onClick={clearFilters}>{t('clearFilters')}</Button>
@@ -239,8 +239,7 @@ export default function ReportsPage() {
                     <p className="text-2xl font-bold">₹{totalRevenue.toLocaleString('en-IN')}</p>
                 </div>
             </div>
-             <div className="flex items-center gap-4 rounded-lg bg-muted p-4">
-                <div className="rounded-full bg-destructive/10 p-3 text-destructive"><Banknote /></div>
+             <div className="flex items-center gap-4 rounded-lg bg-destructive/10 p-3 text-destructive"><Banknote /></div>
                 <div>
                     <p className="text-sm text-muted-foreground">{t('totalDeductions')}</p>
                     <p className="text-2xl font-bold">₹{totalDeductions.toLocaleString('en-IN')}</p>
@@ -359,7 +358,7 @@ export default function ReportsPage() {
                                             return (
                                             <TableRow key={trip.id}>
                                                 <TableCell>{format(trip.date.toDate(), 'MMM d, yyyy')}</TableCell>
-                                                <TableCell>{route ? `${route.source} → ${route.destinations.join(', ')}` : 'N/A'}</TableCell>
+                                                <TableCell>{route ? route.name : 'N/A'}</TableCell>
                                                 <TableCell>₹{route?.rate_per_trip.toLocaleString('en-IN')}</TableCell>
                                                 <TableCell className="text-right">{trip.count}</TableCell>
                                                 <TableCell className="text-right font-semibold">₹{subtotal.toLocaleString('en-IN')}</TableCell>

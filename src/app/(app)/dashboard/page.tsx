@@ -1,7 +1,7 @@
 'use client';
 
 import { DollarSign, Users, Truck, Map, TrendingUp, BarChart, Compass } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Bar, ComposedChart, Legend } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Bar, ComposedChart, Legend, ResponsiveContainer } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { format, eachDayOfInterval, startOfMonth, endOfMonth } from 'date-fns';
@@ -124,9 +124,8 @@ export default function DashboardPage() {
       .map(route => {
         const routeTrips = currentMonthTrips.filter(t => t.routeId === route.id);
         const revenue = routeTrips.reduce((acc, trip) => acc + (trip.count * route.rate_per_trip), 0);
-        const routeName = `${route.source} → ${route.destinations.join(', ')}`;
         return {
-          name: routeName.length > 25 ? `${routeName.substring(0, 25)}...` : routeName,
+          name: route.name,
           revenue
         };
       })
@@ -278,20 +277,22 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
              <ChartContainer config={revenueChartConfig} className="min-h-[250px] w-full">
-                <ComposedChart data={revenuePerRouteData} layout="vertical" margin={{ left: 50 }}>
-                   <CartesianGrid horizontal={false} />
-                   <XAxis type="number" tick={{ fontSize: 12 }} hide/>
-                   <YAxis 
-                    dataKey="name" 
-                    type="category" 
-                    tickLine={false} 
-                    axisLine={false} 
-                    tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
-                    width={120}
-                    />
-                   <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent indicator="dot" />} />
-                   <Bar dataKey="revenue" fill="var(--color-revenue)" radius={[0, 4, 4, 0]} />
-                </ComposedChart>
+                <ResponsiveContainer width="100%" height={250 + (revenuePerRouteData.length * 10)}>
+                  <ComposedChart data={revenuePerRouteData} layout="vertical" margin={{ left: 50, right: 20 }}>
+                    <CartesianGrid horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 12 }} hide/>
+                    <YAxis 
+                      dataKey="name" 
+                      type="category" 
+                      tickLine={false} 
+                      axisLine={false} 
+                      tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                      width={120}
+                      />
+                    <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent indicator="dot" />} />
+                    <Bar dataKey="revenue" fill="var(--color-revenue)" radius={[0, 4, 4, 0]} barSize={15} />
+                  </ComposedChart>
+                </ResponsiveContainer>
              </ChartContainer>
           </CardContent>
         </Card>

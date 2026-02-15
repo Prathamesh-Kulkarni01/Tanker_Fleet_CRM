@@ -51,6 +51,7 @@ import { Form, FormControl, FormField, FormItem, FormMessage } from '@/component
 
 
 const routeSchema = z.object({
+  name: z.string().min(3, { message: 'Route name must be at least 3 characters.'}),
   rate_per_trip: z.coerce.number().positive({ message: 'Rate must be a positive number.' }),
 });
 
@@ -117,6 +118,7 @@ export default function RoutesPage() {
   const form = useForm<RouteFormValues>({
     resolver: zodResolver(routeSchema),
     defaultValues: {
+        name: '',
         rate_per_trip: 0,
     }
   });
@@ -129,7 +131,7 @@ export default function RoutesPage() {
   const handleAddRoute = () => {
     setEditingRoute(null);
     resetMapState();
-    form.reset({ rate_per_trip: 0 });
+    form.reset({ name: '', rate_per_trip: 0 });
     setIsDialogOpen(true);
   };
 
@@ -137,7 +139,7 @@ export default function RoutesPage() {
     setEditingRoute(route);
     setSource({ name: route.source, coords: route.sourceCoords });
     setDestinations(route.destinations.map((name, i) => ({ name, coords: route.destCoords[i] })));
-    form.reset({ rate_per_trip: route.rate_per_trip });
+    form.reset({ name: route.name, rate_per_trip: route.rate_per_trip });
     setIsDialogOpen(true);
   };
 
@@ -172,6 +174,7 @@ export default function RoutesPage() {
     }
 
     const routeData = {
+        name: data.name,
         source: source.name,
         destinations: destinations.map(d => d.name),
         sourceCoords: source.coords,
@@ -339,18 +342,18 @@ export default function RoutesPage() {
                         <Card key={route.id} className={!route.is_active ? 'bg-muted/50' : ''}>
                         <CardHeader>
                             <div className="flex justify-between items-start">
-                            <CardTitle className="flex items-start gap-2 flex-wrap">
-                                <MapPin className="h-5 w-5 text-primary shrink-0 mt-1" />
-                                <span className="font-semibold">{route.source}</span>
-                                <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
-                                <span className="text-muted-foreground font-normal">{route.destinations.join(', ')}</span>
-                            </CardTitle>
-                            <Badge variant={route.is_active ? 'secondary' : 'outline'}>
-                                {route.is_active ? t('active') : t('inactive')}
-                            </Badge>
+                                <CardTitle>{route.name}</CardTitle>
+                                <Badge variant={route.is_active ? 'secondary' : 'outline'}>
+                                    {route.is_active ? t('active') : t('inactive')}
+                                </Badge>
                             </div>
-                            <CardDescription>₹{route.rate_per_trip.toLocaleString('en-IN')} / {t('trip')}</CardDescription>
+                            <CardDescription className="truncate" title={`${route.source} → ${route.destinations.join(', ')}`}>
+                                {route.source} → {route.destinations.join(', ')}
+                            </CardDescription>
                         </CardHeader>
+                        <CardContent>
+                            <div className="font-bold">₹{route.rate_per_trip.toLocaleString('en-IN')} / {t('trip')}</div>
+                        </CardContent>
                         <CardFooter className="flex justify-end gap-2">
                             <Button variant="ghost" size="sm" onClick={() => handleEditRoute(route)}>
                             <Edit className="mr-2 h-4 w-4" />
@@ -423,114 +426,126 @@ export default function RoutesPage() {
            <DialogHeader className="p-6 pb-0">
             <DialogTitle>{editingRoute ? t('editRoute') : t('addRoute')}</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 flex-1 gap-4 overflow-hidden px-6">
-            <div className="flex flex-col gap-4">
-                 <div className="relative">
-                    <Input
-                        id="location-search"
-                        placeholder={!source ? t('searchForStartingPoint') : t('searchForDestination')}
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        autoComplete="off"
-                        className="pl-10"
-                    />
-                     <LocateFixed className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    {suggestions.length > 0 && (
-                        <Card className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto">
-                            <CardContent className="p-1">
-                                {suggestions.map((suggestion) => (
-                                    <div
-                                        key={suggestion.place_id}
-                                        onMouseDown={() => handleSuggestionClick(suggestion)}
-                                        className="p-2 text-sm rounded-sm hover:bg-accent cursor-pointer"
-                                    >
-                                        {suggestion.display_name}
-                                    </div>
-                                ))}
-                            </CardContent>
-                        </Card>
-                    )}
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="contents">
+              <div className="grid grid-cols-1 md:grid-cols-2 flex-1 gap-4 overflow-hidden px-6">
+                <div className="flex flex-col gap-4">
+                    <div className="relative">
+                        <Input
+                            id="location-search"
+                            placeholder={!source ? t('searchForStartingPoint') : t('searchForDestination')}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            autoComplete="off"
+                            className="pl-10"
+                        />
+                        <LocateFixed className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        {suggestions.length > 0 && (
+                            <Card className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto">
+                                <CardContent className="p-1">
+                                    {suggestions.map((suggestion) => (
+                                        <div
+                                            key={suggestion.place_id}
+                                            onMouseDown={() => handleSuggestionClick(suggestion)}
+                                            className="p-2 text-sm rounded-sm hover:bg-accent cursor-pointer"
+                                        >
+                                            {suggestion.display_name}
+                                        </div>
+                                    ))}
+                                </CardContent>
+                            </Card>
+                        )}
+                    </div>
+
+                    <div className="flex-1 space-y-2 overflow-y-auto pr-2">
+                        {source && (
+                            <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
+                                <MapPin className="h-5 w-5 text-blue-600" />
+                                <p className="flex-1 text-sm truncate">{source.name}</p>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSource(null)}><X className="h-4 w-4"/></Button>
+                            </div>
+                        )}
+                        {destinations.map((dest, index) => (
+                            <div key={index} className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
+                                <MapPin className="h-5 w-5 text-red-600" />
+                                <p className="flex-1 text-sm truncate">{dest.name}</p>
+                                <div className="flex items-center">
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveDestination(index, 'up')} disabled={index === 0}><ArrowUp className="h-4 w-4"/></Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveDestination(index, 'down')} disabled={index === destinations.length - 1}><ArrowDown className="h-4 w-4"/></Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeDestination(index)}><X className="h-4 w-4"/></Button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
-                <div className="flex-1 space-y-2 overflow-y-auto pr-2">
-                    {source && (
-                        <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
-                            <MapPin className="h-5 w-5 text-blue-600" />
-                            <p className="flex-1 text-sm truncate">{source.name}</p>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSource(null)}><X className="h-4 w-4"/></Button>
-                        </div>
-                    )}
-                    {destinations.map((dest, index) => (
-                        <div key={index} className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
-                             <MapPin className="h-5 w-5 text-red-600" />
-                             <p className="flex-1 text-sm truncate">{dest.name}</p>
-                             <div className="flex items-center">
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveDestination(index, 'up')} disabled={index === 0}><ArrowUp className="h-4 w-4"/></Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveDestination(index, 'down')} disabled={index === destinations.length - 1}><ArrowDown className="h-4 w-4"/></Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeDestination(index)}><X className="h-4 w-4"/></Button>
-                             </div>
-                        </div>
-                    ))}
+                <div className="flex-1 w-full rounded-md overflow-hidden relative bg-muted">
+                    <MapGL
+                        ref={mapRef}
+                        initialViewState={initialViewState}
+                        style={{width: '100%', height: '100%'}}
+                        mapStyle={osmStyle}
+                        >
+                        {source && (
+                            <Marker longitude={source.coords.longitude} latitude={source.coords.latitude}>
+                                <div className="flex flex-col items-center cursor-pointer">
+                                <MapPin className="h-8 w-8 text-blue-600 fill-blue-400/80 drop-shadow-lg" />
+                                <span className="text-xs font-bold bg-background/80 px-2 py-0.5 rounded-full shadow-lg">S</span>
+                                </div>
+                            </Marker>
+                        )}
+                        {destinations.map((dest, index) => (
+                            <Marker key={index} longitude={dest.coords.longitude} latitude={dest.coords.latitude}>
+                                <div className="flex flex-col items-center cursor-pointer">
+                                    <MapPin className="h-8 w-8 text-red-600 fill-red-400/80 drop-shadow-lg" />
+                                    <span className="text-xs font-bold bg-background/80 px-2 py-0.5 rounded-full shadow-lg">{index + 1}</span>
+                                </div>
+                            </Marker>
+                        ))}
+                    </MapGL>
                 </div>
-            </div>
+              </div>
+                
+              <div className="bg-muted/50 p-6 border-t space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                            control={form.control}
+                            name="name"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <Label htmlFor="name">{t('routeName')}</Label>
+                                    <FormControl>
+                                        <Input id="name" placeholder={t('egWakadToHinjewadi')} {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="rate_per_trip"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <Label htmlFor="rate_per_trip">{t('ratePerTrip')}</Label>
+                                    <FormControl>
+                                        <Input id="rate_per_trip" type="number" placeholder="e.g. 500" {...field} />
+                                    </FormControl>
+                                    <FormMessage/>
+                                </FormItem>
+                            )}
+                        />
+                  </div>
 
-            <div className="flex-1 w-full rounded-md overflow-hidden relative bg-muted">
-                <MapGL
-                    ref={mapRef}
-                    initialViewState={initialViewState}
-                    style={{width: '100%', height: '100%'}}
-                    mapStyle={osmStyle}
-                    >
-                    {source && (
-                        <Marker longitude={source.coords.longitude} latitude={source.coords.latitude}>
-                            <div className="flex flex-col items-center cursor-pointer">
-                              <MapPin className="h-8 w-8 text-blue-600 fill-blue-400/80 drop-shadow-lg" />
-                              <span className="text-xs font-bold bg-background/80 px-2 py-0.5 rounded-full shadow-lg">S</span>
-                            </div>
-                        </Marker>
-                    )}
-                    {destinations.map((dest, index) => (
-                        <Marker key={index} longitude={dest.coords.longitude} latitude={dest.coords.latitude}>
-                             <div className="flex flex-col items-center cursor-pointer">
-                                <MapPin className="h-8 w-8 text-red-600 fill-red-400/80 drop-shadow-lg" />
-                                 <span className="text-xs font-bold bg-background/80 px-2 py-0.5 rounded-full shadow-lg">{index + 1}</span>
-                            </div>
-                        </Marker>
-                    ))}
-                </MapGL>
-            </div>
-
-          </div>
-            
-            <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)}>
-            <div className="bg-muted/50 p-6 border-t">
-                <FormField
-                    control={form.control}
-                    name="rate_per_trip"
-                    render={({ field }) => (
-                        <FormItem className="grid grid-cols-2 items-center gap-2">
-                            <Label htmlFor="rate_per_trip" className="font-bold">{t('ratePerTrip')}</Label>
-                            <FormControl>
-                                <Input id="rate_per_trip" type="number" placeholder="e.g. 500" {...field} />
-                            </FormControl>
-                            <div className="col-span-2">
-                               <FormMessage/>
-                            </div>
-                        </FormItem>
-                    )}
-                />
-
-                <DialogFooter className="pt-6">
-                <DialogClose asChild>
-                    <Button type="button" variant="secondary">
-                    {t('cancel')}
-                    </Button>
-                </DialogClose>
-                <Button type="submit">{t('saveChanges')}</Button>
-                </DialogFooter>
-            </div>
-          </form>
+                  <DialogFooter>
+                    <DialogClose asChild>
+                        <Button type="button" variant="secondary">
+                        {t('cancel')}
+                        </Button>
+                    </DialogClose>
+                    <Button type="submit">{t('saveChanges')}</Button>
+                  </DialogFooter>
+              </div>
+            </form>
           </Form>
         </DialogContent>
       </Dialog>

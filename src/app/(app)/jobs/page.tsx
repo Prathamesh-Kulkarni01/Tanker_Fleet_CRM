@@ -135,7 +135,7 @@ export default function JobsPage() {
                 ownerId: user.uid,
                 driverId: selectedDriver,
                 routeId: selectedRoute,
-                routeName: `${route.source} → ${route.destinations.join(', ')}`,
+                routeName: route.name,
                 status: 'assigned',
                 assignedAt: Timestamp.now(),
                 events: [],
@@ -232,7 +232,7 @@ export default function JobsPage() {
                                     <SelectValue placeholder={t('selectRoute')} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {activeRoutes?.map(r => <SelectItem key={r.id} value={r.id}>{r.source} → {r.destinations.join(', ')}</SelectItem>)}
+                                    {activeRoutes?.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -249,5 +249,3 @@ export default function JobsPage() {
         </div>
     );
 }
-
-    

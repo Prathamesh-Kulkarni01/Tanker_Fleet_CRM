@@ -137,7 +137,7 @@ export default function TripsPage() {
       return activeDrivers?.find(d => d.id === driverId)?.name || driverId;
   }
   const getRouteName = (routeId: string) => {
-      return activeRoutes?.find(r => r.id === routeId)?.source || routeId;
+      return activeRoutes?.find(r => r.id === routeId)?.name || routeId;
   }
 
   return (
@@ -203,7 +203,7 @@ export default function TripsPage() {
                         <SelectContent>
                           {activeRoutes?.map((route) => (
                             <SelectItem key={route.id} value={route.id}>
-                              {route.source} → {route.destinations.join(', ')}
+                              {route.name}
                             </SelectItem>
                           ))}
                         </SelectContent>

@@ -18,6 +18,7 @@ export type Driver = {
 
 export type Route = {
   id: string; // This is the Firestore Document ID
+  name: string;
   ownerId: string;
   source: string;
   destinations: string[];
@@ -57,4 +58,15 @@ export type MonthlySummary = {
   month: string; // "YYYY-MM"
   total_trips: number;
   payout: number;
+};
+
+export type Job = {
+  id: string;
+  ownerId: string;
+  driverId: string;
+  routeId: string;
+  routeName: string;
+  status: 'requested' | 'assigned' | 'accepted' | 'in_progress' | 'completed';
+  assignedAt: any; // Firestore Timestamp
+  events: any[]; // Consider a more specific type
 };

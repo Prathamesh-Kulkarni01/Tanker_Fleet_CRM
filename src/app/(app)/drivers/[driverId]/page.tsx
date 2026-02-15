@@ -50,10 +50,13 @@ function AvailableRoutes({ routes, onStartTrip }: { routes: Route[]; onStartTrip
             {routes.map(route => (
                  <Card key={route.id}>
                     <CardHeader>
-                        <CardTitle>{route.source} → {route.destinations.join(', ')}</CardTitle>
-                        <CardDescription>₹{route.rate_per_trip}/trip</CardDescription>
+                        <CardTitle>{route.name}</CardTitle>
+                        <CardDescription className="truncate" title={`${route.source} → ${route.destinations.join(', ')}`}>
+                            {route.source} → {route.destinations.join(', ')}
+                        </CardDescription>
                     </CardHeader>
-                    <CardContent className="flex items-center justify-end">
+                    <CardContent className="flex items-center justify-between">
+                        <div className="font-bold">₹{route.rate_per_trip}/trip</div>
                         <Button onClick={() => onStartTrip(route)}>
                             {t('startTrip')}
                         </Button>

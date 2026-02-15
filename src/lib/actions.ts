@@ -23,7 +23,7 @@ export async function getDriverInsights(driverId: string, allTrips: (Omit<Trip, 
       .map(t => {
           const route = routes.find(r => r.id === t.routeId);
           return {
-            trip_type: route ? `${route.source} → ${route.destinations.join(', ')}` : 'Unknown Route',
+            trip_type: route ? route.name : 'Unknown Route',
             trip_count: t.count,
             date: format(new Date(t.date), 'yyyy-MM-dd'),
           }

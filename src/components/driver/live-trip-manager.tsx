@@ -99,8 +99,8 @@ export function LiveTripManager({ route, driver, onBack }: LiveTripManagerProps)
                     <div className="flex items-center gap-2">
                          <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0"><ArrowLeft/></Button>
                         <div>
-                            <CardTitle className="text-2xl font-bold font-headline">{route.source} → {route.destinations.join(', ')}</CardTitle>
-                            <CardDescription className="text-base">{t('ratePerTripValue', { rate: route.rate_per_trip })}</CardDescription>
+                            <CardTitle className="text-2xl font-bold font-headline">{route.name}</CardTitle>
+                            <CardDescription className="text-base">{route.source} → {route.destinations.join(', ')} | ₹{route.rate_per_trip}/trip</CardDescription>
                         </div>
                     </div>
                 </CardHeader>

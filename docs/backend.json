@@ -76,6 +76,10 @@
       "description": "A transport route from a source to one or more destinations.",
       "type": "object",
       "properties": {
+        "name": {
+          "type": "string",
+          "description": "A short, memorable name for the route."
+        },
         "ownerId": {
           "type": "string",
           "description": "The UID of the owner who created this route."
@@ -130,6 +134,7 @@
         }
       },
       "required": [
+        "name",
         "ownerId",
         "source",
         "destinations",
