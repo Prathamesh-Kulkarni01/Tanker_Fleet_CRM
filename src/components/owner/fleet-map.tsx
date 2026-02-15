@@ -249,10 +249,10 @@ export function FleetMap() {
             anchor="bottom"
             offset={40}
           >
-            <div className="w-48">
+            <div className="w-48 text-neutral-900">
               <div className="flex items-center justify-between mb-2">
                   <h3 className="font-bold text-base">{selectedDriver.driver.name}</h3>
-                  <Badge variant={selectedDriver.status === 'active' ? 'secondary' : 'outline'}>{t(selectedDriver.status)}</Badge>
+                  <Badge variant={selectedDriver.status === 'active' ? 'default' : 'secondary'}>{t(selectedDriver.status)}</Badge>
               </div>
               <div className="space-y-1.5 text-sm">
                   <p>{t('todaysTrips')}: <span className="font-semibold">{todaysTripsByDriver[selectedDriver.driver.id] || 0}</span></p>
@@ -269,14 +269,14 @@ export function FleetMap() {
             <CardTitle className="text-lg">{t('fleetOverview')}</CardTitle>
             <CardDescription>{t('liveStatusOfAllDrivers')}</CardDescription>
         </CardHeader>
-        <CardContent className="p-3 pt-0 space-y-1">
-            <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">{t('active')}</span>
-                <span className="font-bold text-lg text-green-600">{activeDriversCount}</span>
+        <CardContent className="p-3 pt-0 grid grid-cols-2 gap-2">
+            <div className="text-center rounded-md p-2 bg-muted">
+                <p className="text-muted-foreground text-sm font-semibold">{t('active')}</p>
+                <p className="font-bold text-lg text-green-600">{activeDriversCount}</p>
             </div>
-            <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">{t('idle')}</span>
-                <span className="font-bold text-lg text-amber-600">{idleDriversCount}</span>
+            <div className="text-center rounded-md p-2 bg-muted">
+                <p className="text-muted-foreground text-sm font-semibold">{t('idle')}</p>
+                <p className="font-bold text-lg text-amber-600">{idleDriversCount}</p>
             </div>
         </CardContent>
       </Card>
