@@ -32,7 +32,7 @@ export default function LiveTripPage({ params }: { params: { tripId: string } })
   }
 
   return (
-    <div className="h-screen w-screen">
+    <div className="absolute inset-0">
       <LiveMap trip={trip} route={route} />
     </div>
   );

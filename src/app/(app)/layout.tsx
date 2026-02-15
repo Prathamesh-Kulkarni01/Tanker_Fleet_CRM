@@ -12,28 +12,27 @@ import { cn } from '@/lib/utils';
 
 function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isFleetPage = pathname === '/fleet';
+  const isMapPage = pathname === '/fleet' || pathname.startsWith('/trips/live/');
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full flex-col">
-        <AppSidebar />
-        <div className="flex flex-col md:pl-14">
-          <AppHeader />
-          <main
-            className={cn(
-              'relative flex-1',
-              !isFleetPage && 'flex flex-col overflow-auto p-4 sm:px-6 md:p-8 pb-24 md:pb-8'
-            )}
-          >
-            {children}
-          </main>
-        </div>
-        <AppBottomNav />
+      <AppSidebar />
+      <div className="flex flex-1 flex-col md:pl-14">
+        {!isMapPage && <AppHeader />}
+        <main
+          className={cn(
+            'relative flex-1',
+            !isMapPage && 'overflow-auto p-4 sm:px-6 md:p-8 pb-24 md:pb-8'
+          )}
+        >
+          {children}
+        </main>
+        {!isMapPage && <AppBottomNav />}
       </div>
     </SidebarProvider>
   );
 }
+
 
 function FullPageLoader() {
   return (
