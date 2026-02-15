@@ -73,7 +73,9 @@ export function AppHeader() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuLabel>{user?.name || t('myAccount')}</DropdownMenuLabel>
+          <DropdownMenuLabel>
+            {user?.name || t('myAccount')} ({user?.role})
+          </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
             <Link href="/settings">{t('settings')}</Link>
