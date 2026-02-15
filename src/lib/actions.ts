@@ -5,12 +5,11 @@ import type { Driver, Route, Trip, Slab } from '@/lib/data';
 import { format, getMonth, getYear } from 'date-fns';
 
 
-export async function getDriverInsights(driver: Driver, allTrips: Trip[], slabs: Slab[], routes: Route[]) {
+export async function getDriverInsights(driver: Driver, allTrips: (Omit<Trip, 'date'> & { date: string })[], slabs: Slab[], routes: Route[]) {
   try {
     if (!driver) {
       throw new Error('Driver not found');
     }
-    const ownerId = driver.ownerId;
 
     const now = new Date();
     const currentMonthStr = format(now, 'yyyy-MM');
@@ -18,7 +17,7 @@ export async function getDriverInsights(driver: Driver, allTrips: Trip[], slabs:
     // 3. Process current month's trips
     const currentMonthTripEntries = allTrips
       .filter(t => {
-        const tripDate = t.date.toDate();
+        const tripDate = new Date(t.date);
         return format(tripDate, 'yyyy-MM') === currentMonthStr;
       })
       .map(t => {
@@ -26,7 +25,7 @@ export async function getDriverInsights(driver: Driver, allTrips: Trip[], slabs:
           return {
             trip_type: route ? `${route.source} → ${route.destinations.join(', ')}` : 'Unknown Route',
             trip_count: t.count,
-            date: format(t.date.toDate(), 'yyyy-MM-dd'),
+            date: format(new Date(t.date), 'yyyy-MM-dd'),
           }
       });
     
@@ -41,7 +40,7 @@ export async function getDriverInsights(driver: Driver, allTrips: Trip[], slabs:
         const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
 
         const monthTrips = allTrips.filter(t => {
-            const tripDate = t.date.toDate();
+            const tripDate = new Date(t.date);
             return format(tripDate, 'yyyy-MM') === monthStr;
         });
 

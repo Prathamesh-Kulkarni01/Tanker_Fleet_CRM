@@ -30,7 +30,16 @@ export function PayoutInsights({ driver, allTrips, routes, slabs }: PayoutInsigh
       }
       setLoading(true);
       setError(null);
-      const result = await getDriverInsights(driver, allTrips, slabs, routes);
+
+      // Convert complex objects to plain objects before passing to the Server Action
+      const plainTrips = allTrips.map(trip => ({
+        ...trip,
+        // The `date` field is a Firestore Timestamp object, which is not a plain object.
+        // We convert it to an ISO string before sending it to the server.
+        date: trip.date.toDate().toISOString(),
+      }));
+
+      const result = await getDriverInsights(driver, plainTrips, slabs, routes);
       if (result.success) {
         setInsights(result.data);
       } else {
