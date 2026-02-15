@@ -226,7 +226,7 @@ export default function DriverPage() {
                     {t('acceptAndStartYourTrips')}
                 </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
                 <AssignedJobs driverId={driverId} />
             </CardContent>
         </Card>
