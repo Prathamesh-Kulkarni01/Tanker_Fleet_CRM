@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // For this prototype, allow signed-in users to read and write all data.
+    // In a production app, you would implement more granular security rules.
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

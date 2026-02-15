@@ -1,0 +1,90 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Base user profile information.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "role": { "type": "string", "enum": ["owner", "driver"] },
+        "isActive": { "type": "boolean" },
+        "avatarUrl": { "type": "string", "format": "uri" },
+        "ownerId": { "type": "string", "description": "ID of the owner this driver belongs to. Only for drivers." }
+      },
+      "required": ["name", "phone", "role", "isActive"]
+    },
+    "Route": {
+      "title": "Route",
+      "description": "A transport route from a source to one or more destinations.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string" },
+        "source": { "type": "string" },
+        "destinations": { "type": "array", "items": { "type": "string" } },
+        "rate_per_trip": { "type": "number" },
+        "is_active": { "type": "boolean" },
+        "sourceCoords": {
+          "type": "object",
+          "properties": { "latitude": { "type": "number" }, "longitude": { "type": "number" } },
+          "required": ["latitude", "longitude"]
+        },
+        "destCoords": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": { "latitude": { "type": "number" }, "longitude": { "type": "number" } },
+            "required": ["latitude", "longitude"]
+          }
+        }
+      },
+      "required": ["ownerId", "source", "destinations", "rate_per_trip", "is_active", "sourceCoords", "destCoords"]
+    },
+    "Trip": {
+      "title": "Trip",
+      "description": "A record of trips made by a driver on a specific date and route.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string" },
+        "driverId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "routeId": { "type": "string" },
+        "count": { "type": "number" }
+      },
+      "required": ["ownerId", "driverId", "date", "routeId", "count"]
+    },
+    "PayoutSlab": {
+      "title": "Payout Slab",
+      "description": "Configuration for driver payout based on trip count.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string" },
+        "min_trips": { "type": "number" },
+        "max_trips": { "type": "number" },
+        "payout_amount": { "type": "number" }
+      },
+      "required": ["ownerId", "min_trips", "max_trips", "payout_amount"]
+    }
+  },
+  "auth": {
+    "providers": ["phone"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Stores user profile data for all users (owners and drivers)."
+    },
+    "/routes/{routeId}": {
+      "schema": { "$ref": "#/entities/Route" },
+      "description": "All routes for all owners. The 'ownerId' field scopes the data."
+    },
+    "/trips/{tripId}": {
+      "schema": { "$ref": "#/entities/Trip" },
+      "description": "All trips for all drivers. The 'ownerId' field scopes the data."
+    },
+    "/payoutSlabs/{slabId}": {
+      "schema": { "$ref": "#/entities/PayoutSlab" },
+      "description": "All payout slabs. The 'ownerId' field scopes the data."
+    }
+  }
+}
