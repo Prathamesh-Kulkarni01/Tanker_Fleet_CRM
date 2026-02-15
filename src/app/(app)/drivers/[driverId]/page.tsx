@@ -5,17 +5,18 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PayoutInsights } from '@/components/driver/payout-insights';
 import { format, startOfMonth } from 'date-fns';
-import { Truck, DollarSign, Award, AlertCircle, Briefcase, Play, History } from 'lucide-react';
+import { Truck, DollarSign, Award, AlertCircle, Briefcase, Play, History, Loader2 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/auth';
 import { useFirestore, useCollection, useDoc } from '@/firebase';
-import { collection, doc, query, where } from 'firebase/firestore';
+import { collection, doc, query, where, addDoc, Timestamp } from 'firebase/firestore';
 import type { Trip, Route, Slab, Driver, Job } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { DriverJobManager } from '@/components/driver/DriverJobManager';
+import { useToast } from '@/hooks/use-toast';
 
 function DriverPageSkeleton() {
   return (
@@ -74,7 +75,9 @@ export default function DriverPage() {
   const { t } = useI18n();
   const { user } = useAuth();
   const firestore = useFirestore();
+  const { toast } = useToast();
   const [activeJob, setActiveJob] = useState<Job | null>(null);
+  const [isRequesting, setIsRequesting] = useState<string | null>(null);
 
   const driverRef = useMemo(() => firestore ? doc(firestore, 'users', driverId) : null, [firestore, driverId]);
   const { data: driver, loading: driverLoading, error: driverError } = useDoc<Driver>(driverRef);
@@ -88,6 +91,17 @@ export default function DriverPage() {
     );
   }, [firestore, driverId]);
   const { data: jobs, loading: jobsLoading } = useCollection<Job>(jobsQuery);
+
+  const requestedJobsQuery = useMemo(() => {
+    if (!firestore || !driverId) return null;
+    return query(
+      collection(firestore, 'jobs'),
+      where('driverId', '==', driverId),
+      where('status', '==', 'requested')
+    );
+  }, [firestore, driverId]);
+  const { data: requestedJobsByThisDriver, loading: requestedJobsLoading } = useCollection<Job>(requestedJobsQuery);
+
 
   const assignedJobs = useMemo(() => jobs?.filter(j => j.status === 'assigned' || j.status === 'accepted').sort((a,b) => b.assignedAt.toDate() - a.assignedAt.toDate()) || [], [jobs]);
   const inProgressJobs = useMemo(() => jobs?.filter(j => j.status === 'in_progress').sort((a,b) => b.assignedAt.toDate() - a.assignedAt.toDate()) || [], [jobs]);
@@ -134,7 +148,38 @@ export default function DriverPage() {
     return { estimatedPayout: payout };
   }, [totalTrips, slabs]);
 
-  const isLoading = driverLoading || tripsLoading || routesLoading || slabsLoading || jobsLoading;
+  const handleRequestJob = async (route: Route) => {
+    if (!firestore || !driver) return;
+
+    const alreadyRequested = requestedJobsByThisDriver?.some(j => j.routeId === route.id);
+    if (alreadyRequested) {
+        toast({ title: t('requestAlreadySent'), description: t('ownerWillApprove') });
+        return;
+    }
+    
+    setIsRequesting(route.id);
+
+    try {
+        await addDoc(collection(firestore, 'jobs'), {
+            ownerId: driver.ownerId,
+            driverId: driver.id,
+            routeId: route.id,
+            routeName: route.name,
+            status: 'requested',
+            assignedAt: Timestamp.now(),
+            events: [],
+        });
+        toast({ title: t('jobRequested'), description: t('ownerWillBeNotified') });
+    } catch (e) {
+        console.error(e);
+        toast({ variant: 'destructive', title: t('error'), description: t('couldNotRequestJob') });
+    } finally {
+        setIsRequesting(null);
+    }
+  };
+
+
+  const isLoading = driverLoading || tripsLoading || routesLoading || slabsLoading || jobsLoading || requestedJobsLoading;
 
   if (isLoading) {
     return <DriverPageSkeleton />;
@@ -188,11 +233,40 @@ export default function DriverPage() {
       </div>
 
         {noJobsAvailable && (
-             <Card>
-                <CardContent className="p-6 text-center">
-                    <Briefcase className="mx-auto h-12 w-12 text-muted-foreground" />
-                    <h3 className="mt-4 text-lg font-medium">{t('noAssignedJobs')}</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">{t('ownerHasNotAssignedJobs')}</p>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Briefcase className="w-5 h-5"/>
+                        {t('noAssignedJobs')}
+                    </CardTitle>
+                    <CardDescription>{t('noAssignedJobsDescription')}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <h4 className="font-semibold mb-4">{t('availableRoutesForRequest')}</h4>
+                    {routes && routes.length > 0 ? (
+                        <div className="space-y-4">
+                            {routes.map(route => {
+                                const isRequested = requestedJobsByThisDriver?.some(j => j.routeId === route.id);
+                                return (
+                                    <div key={route.id} className="flex items-center justify-between p-3 rounded-md bg-muted/50">
+                                        <div>
+                                            <p className="font-semibold">{route.name}</p>
+                                            <p className="text-sm text-muted-foreground">₹{route.rate_per_trip}/{t('trip')}</p>
+                                        </div>
+                                        <Button 
+                                            onClick={() => handleRequestJob(route)} 
+                                            disabled={isRequested || !!isRequesting}
+                                            size="sm"
+                                        >
+                                            {isRequesting === route.id ? <Loader2 className="animate-spin" /> : (isRequested ? t('requestSent') : t('requestJob'))}
+                                        </Button>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">{t('noRoutesAvailableToRequest')}</p>
+                    )}
                 </CardContent>
             </Card>
         )}
