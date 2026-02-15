@@ -376,7 +376,7 @@ export default function RoutesPage() {
                                       {route.is_active ? t('active') : t('inactive')}
                                   </Badge>
                               </div>
-                              <CardDescription className="truncate" title={`${route.source} → ${route.destinations.join(', ')}`}>
+                              <CardDescription className="break-words" title={`${route.source} → ${route.destinations.join(', ')}`}>
                                   {route.source} → {route.destinations.join(', ')}
                               </CardDescription>
                           </CardHeader>
@@ -594,9 +594,3 @@ export default function RoutesPage() {
     </div>
   );
 }
-
-    
-
-    
-
-    
