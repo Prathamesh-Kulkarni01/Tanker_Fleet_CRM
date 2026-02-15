@@ -92,7 +92,7 @@ export default function JobsPage() {
         if (!firestore || !user) return null;
         return query(collection(firestore, 'jobs'), where('ownerId', '==', user.uid));
     }, [firestore, user]);
-    const { data: allJobs, loading: jobsLoading } = useCollection<Job>(allJobsQuery);
+    const { data: allJobs, loading: jobsLoading } = useCollection<Job>(jobsQuery);
 
     const driversQuery = useMemo(() => {
         if (!firestore || !user) return null;
