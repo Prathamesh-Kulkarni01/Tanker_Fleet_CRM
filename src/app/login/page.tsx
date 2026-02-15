@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, Truck } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const { t } = useI18n();
@@ -39,6 +40,7 @@ export default function LoginPage() {
       if (!result.success) {
         setError(result.error || t('invalidCredentials'));
       }
+      // Successful login is handled by the useEffect
     } catch (err) {
       setError(err instanceof Error ? err.message : t('anErrorOccurred'));
     } finally {
@@ -96,6 +98,12 @@ export default function LoginPage() {
               {loading ? t('loggingIn') : t('login')}
             </Button>
           </form>
+          <div className="mt-4 text-center text-sm">
+            {t('dontHaveAccount')}{' '}
+            <Link href="/register" className="underline font-semibold text-primary">
+              {t('registerHere')}
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -32,6 +32,15 @@
         "ownerId": {
           "type": "string",
           "description": "ID of the owner this driver belongs to. Only for drivers."
+        },
+        "subscriptionKey": {
+          "type": "string",
+          "description": "The last subscription key used by the owner."
+        },
+        "subscriptionExpiresAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The date and time when the user's subscription expires."
         }
       },
       "required": [
@@ -40,6 +49,30 @@
         "role",
         "isActive",
         "id"
+      ]
+    },
+    "SubscriptionKey": {
+      "title": "Subscription Key",
+      "description": "A key that grants access to the service for a limited time.",
+      "type": "object",
+      "properties": {
+        "isUsed": {
+          "type": "boolean",
+          "description": "Whether this key has been redeemed."
+        },
+        "usedBy": {
+          "type": "string",
+          "description": "The UID of the user who redeemed this key."
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The date and time when the subscription granted by this key expires."
+        }
+      },
+      "required": [
+        "isUsed",
+        "expiresAt"
       ]
     },
     "Route": {
@@ -176,6 +209,12 @@
         "$ref": "#/entities/UserProfile"
       },
       "description": "Stores user profile data for all users (owners and drivers)."
+    },
+    "/subscriptionKeys/{key}": {
+      "schema": {
+        "$ref": "#/entities/SubscriptionKey"
+      },
+      "description": "Stores subscription keys that can be redeemed by owners."
     },
     "/routes/{routeId}": {
       "schema": {

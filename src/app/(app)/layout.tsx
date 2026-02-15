@@ -16,21 +16,23 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
-      <AppSidebar />
-      <div className="flex flex-1 flex-col md:pl-14">
-        <AppHeader />
-        <main
-          className={cn(
-            'flex-1',
-            isMapPage
-              ? 'relative'
-              : 'overflow-auto p-4 sm:px-6 md:p-8 pb-24 md:pb-8'
-          )}
-        >
-          {children}
-        </main>
-        <AppBottomNav />
+      <div className="flex min-h-screen">
+        <AppSidebar />
+        <div className="flex flex-1 flex-col md:pl-14">
+          {!isMapPage && <AppHeader />}
+          <main
+            className={cn(
+              'flex-1',
+              isMapPage ? 'relative' : 'overflow-y-auto p-4 sm:px-6 md:p-8 pb-24 md:pb-8'
+            )}
+          >
+            {isMapPage && <AppHeader />}
+            {children}
+          </main>
+          {!isMapPage && <AppBottomNav />}
+        </div>
       </div>
+      {isMapPage && <AppBottomNav />}
     </SidebarProvider>
   );
 }
@@ -65,16 +67,39 @@ export default function AppLayout({
 }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (loading) return;
+
+    if (!user) {
       router.replace('/login');
+      return;
     }
-  }, [user, loading, router]);
+
+    // Subscription check for owners
+    if (user.role === 'owner' && pathname !== '/renew') {
+      if (user.subscriptionExpiresAt) {
+        const expiryDate = new Date(user.subscriptionExpiresAt);
+        if (new Date() > expiryDate) {
+          router.replace('/renew');
+        }
+      } else {
+        // If owner has no subscription info, force renewal
+        router.replace('/renew');
+      }
+    }
+  }, [user, loading, router, pathname]);
 
   if (loading || !user) {
     return <FullPageLoader />;
   }
+  
+  // If subscription is expired and we are not on renew page, show loader to prevent flicker
+  if (user.role === 'owner' && user.subscriptionExpiresAt && new Date() > new Date(user.subscriptionExpiresAt) && pathname !== '/renew') {
+    return <FullPageLoader />;
+  }
+
 
   return <AppLayoutContent>{children}</AppLayoutContent>;
 }

@@ -1,9 +1,15 @@
 'use client';
 
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import {
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  type User as FirebaseUser,
+} from 'firebase/auth';
+import { doc, getDoc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import { useFirebaseAuth, useFirestore } from '@/firebase';
 
 // The user object we'll use in our app, combining Firebase Auth and Firestore data.
@@ -12,11 +18,21 @@ export type User = {
   id: string; // Legacy ID for routing (e.g., 'd1', 'owner-1')
   name: string;
   role: 'owner' | 'driver';
+  subscriptionExpiresAt?: string; // ISO string format
 };
+
+interface RegisterOwnerParams {
+  name: string;
+  phone: string;
+  password: any;
+  subscriptionKey: string;
+}
 
 interface AuthContextType {
   user: User | null;
   login: (phone: string, passwordOrCode: string) => Promise<{ success: boolean; error?: string }>;
+  registerOwner: (params: RegisterOwnerParams) => Promise<{ success: boolean; error?: string }>;
+  renewSubscription: (key: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   loading: boolean;
 }
@@ -35,9 +51,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!auth || !firestore) {
-        setLoading(false); // Firebase not ready
-        return;
-    };
+      setLoading(false); // Firebase not ready
+      return;
+    }
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
@@ -47,12 +63,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (userDoc.exists()) {
           const userProfile = userDoc.data();
+          const expiresAt = userProfile.subscriptionExpiresAt;
+
           // Construct the rich user object for our app
           const appUser: User = {
             uid: firebaseUser.uid,
             id: userProfile.id, // This ID is used for routing (e.g., /drivers/d1)
             name: userProfile.name || 'No Name',
             role: userProfile.role || 'driver', // Default to driver if role not set
+            subscriptionExpiresAt: expiresAt instanceof Timestamp ? expiresAt.toDate().toISOString() : expiresAt,
           };
           setUser(appUser);
         } else {
@@ -69,13 +88,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [auth, firestore, router]);
+  }, [auth, firestore]);
 
   const login = async (phone: string, passwordOrCode: string): Promise<{ success: boolean; error?: string }> => {
     if (!auth) {
-        return { success: false, error: 'Auth service not available.' };
+      return { success: false, error: 'Auth service not available.' };
     }
-    
+
     try {
       // Use phone number to construct a unique email for Firebase email/password auth
       const email = `${phone}@${DUMMY_EMAIL_DOMAIN}`;
@@ -101,6 +120,100 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const registerOwner = async ({ name, phone, password, subscriptionKey }: RegisterOwnerParams): Promise<{ success: boolean; error?: string }> => {
+    if (!auth || !firestore) {
+      return { success: false, error: 'Services not available.' };
+    }
+
+    try {
+      // 1. Validate the subscription key
+      const keyRef = doc(firestore, 'subscriptionKeys', subscriptionKey);
+      const keyDoc = await getDoc(keyRef);
+
+      if (!keyDoc.exists()) {
+        return { success: false, error: 'Invalid subscription key.' };
+      }
+
+      const keyData = keyDoc.data();
+      if (keyData.isUsed) {
+        return { success: false, error: 'This subscription key has already been used.' };
+      }
+
+      // 2. Create user in Firebase Auth
+      const email = `${phone}@${DUMMY_EMAIL_DOMAIN}`;
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const newUser = userCredential.user;
+
+      // 3. Create user profile in Firestore
+      const userDocRef = doc(firestore, 'users', newUser.uid);
+      await setDoc(userDocRef, {
+        id: `owner-${newUser.uid.slice(0, 5)}`, // Create a simple unique ID
+        name,
+        phone,
+        role: 'owner',
+        isActive: true,
+        subscriptionKey,
+        subscriptionExpiresAt: keyData.expiresAt,
+      });
+
+      // 4. Mark subscription key as used
+      await updateDoc(keyRef, {
+        isUsed: true,
+        usedBy: newUser.uid,
+      });
+
+      // onAuthStateChanged will handle the rest
+      return { success: true };
+    } catch (error: any) {
+        console.error("Registration error: ", error);
+        if (error.code === 'auth/email-already-in-use') {
+            return { success: false, error: 'An account with this phone number already exists.' };
+        }
+        return { success: false, error: 'Could not create account. Please try again.' };
+    }
+  };
+  
+  const renewSubscription = async (key: string): Promise<{ success: boolean; error?: string }> => {
+    if (!firestore || !user) {
+        return { success: false, error: 'User not logged in or services unavailable.' };
+    }
+
+    try {
+        const keyRef = doc(firestore, 'subscriptionKeys', key);
+        const keyDoc = await getDoc(keyRef);
+
+        if (!keyDoc.exists()) {
+            return { success: false, error: 'Invalid subscription key.' };
+        }
+        const keyData = keyDoc.data();
+        if (keyData.isUsed) {
+            return { success: false, error: 'This subscription key has already been used.' };
+        }
+
+        const userDocRef = doc(firestore, 'users', user.uid);
+        const newExpiryDate = keyData.expiresAt;
+
+        await updateDoc(userDocRef, {
+            subscriptionKey: key,
+            subscriptionExpiresAt: newExpiryDate
+        });
+        
+        await updateDoc(keyRef, {
+            isUsed: true,
+            usedBy: user.uid,
+        });
+
+        // Update local user state
+        setUser(prevUser => prevUser ? { ...prevUser, subscriptionExpiresAt: newExpiryDate.toDate().toISOString() } : null);
+        
+        return { success: true };
+
+    } catch (error: any) {
+        console.error('Subscription renewal error:', error);
+        return { success: false, error: 'Failed to renew subscription.' };
+    }
+  };
+
   const logout = async () => {
     if (!auth) return;
     await signOut(auth);
@@ -108,8 +221,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/login');
   };
 
+  const memoizedAuthContext = useCallback(() => ({
+      user,
+      login,
+      registerOwner,
+      renewSubscription,
+      logout,
+      loading,
+  }), [user, loading]);
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={memoizedAuthContext()}>
       {children}
     </AuthContext.Provider>
   );
