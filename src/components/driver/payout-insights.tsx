@@ -1,4 +1,3 @@
-
 'use client';
 
 import { getDriverInsights } from '@/lib/actions';
@@ -33,12 +32,23 @@ export function PayoutInsights({ driver, allTrips, routes, slabs }: PayoutInsigh
       setError(null);
 
       // Convert complex objects to plain objects before passing to the Server Action
-      const plainTrips = allTrips.map(trip => ({
-        ...trip,
-        // The `date` field is a Firestore Timestamp object, which is not a plain object.
-        // We convert it to an ISO string before sending it to the server.
-        date: trip.date.toDate().toISOString(),
-      }));
+      const plainTrips = allTrips.map(trip => {
+        // The `events` array can contain Firestore Timestamps, which are not serializable.
+        const plainEvents = trip.events?.map(e => ({
+          ...e,
+          // The `timestamp` field is a Firestore Timestamp object.
+          // Convert it to an ISO string.
+          timestamp: e.timestamp.toDate().toISOString(),
+        }));
+        
+        return {
+          ...trip,
+          // The `date` field is also a Firestore Timestamp object.
+          date: trip.date.toDate().toISOString(),
+          // Replace events array with the one that has serialized timestamps.
+          events: plainEvents,
+        }
+      });
 
       const result = await getDriverInsights(driver.id, plainTrips, slabs, routes);
       if (result.success) {
