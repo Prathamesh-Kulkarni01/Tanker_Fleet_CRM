@@ -11,6 +11,8 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import { useFirebaseAuth, useFirestore } from '@/firebase';
+import { v4 as uuidv4 } from 'uuid';
+
 
 // The user object we'll use in our app, combining Firebase Auth and Firestore data.
 export type User = {
@@ -67,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Construct the rich user object for our app
           const appUser: User = {
             uid: firebaseUser.uid,
-            id: userProfile.id, // This ID is used for routing (e.g., /drivers/d1)
+            id: userProfile.id || firebaseUser.uid, // Use UID as a fallback
             name: userProfile.name || 'No Name',
             role: userProfile.role || 'driver', // Default to driver if role not set
             subscriptionExpiresAt: expiresAt instanceof Timestamp ? expiresAt.toDate().toISOString() : expiresAt,
@@ -145,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 2. Create user profile in Firestore (without subscription details)
       const userDocRef = doc(firestore, 'users', newUser.uid);
       await setDoc(userDocRef, {
-        id: `owner-${newUser.uid.slice(0, 5)}`,
+        id: `owner-${uuidv4()}`,
         name,
         phone,
         role: 'owner',
