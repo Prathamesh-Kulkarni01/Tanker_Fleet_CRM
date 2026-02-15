@@ -48,7 +48,7 @@ export default function JobPage() {
     const { data: route, loading: routeLoading } = useDoc<Route>(routeRef);
 
     const handleCompleteTrip = async () => {
-        if (!firestore || !job || !user || !route) return;
+        if (!firestore || !job || !user || !route || !jobRef) return;
 
         setSubmittingAction('complete_trip');
         try {
