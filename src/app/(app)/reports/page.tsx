@@ -239,18 +239,19 @@ export default function ReportsPage() {
                     <p className="text-2xl font-bold">₹{totalRevenue.toLocaleString('en-IN')}</p>
                 </div>
             </div>
-             <div className="flex items-center gap-4 rounded-lg bg-destructive/10 p-3 text-destructive"><Banknote /></div>
-                <div>
-                    <p className="text-sm text-muted-foreground">{t('totalDeductions')}</p>
-                    <p className="text-2xl font-bold">₹{totalDeductions.toLocaleString('en-IN')}</p>
-                </div>
+            <div className="flex items-center gap-4 rounded-lg bg-destructive/10 p-4">
+              <div className="rounded-full bg-destructive/10 p-3 text-destructive"><Banknote /></div>
+              <div>
+                  <p className="text-sm text-muted-foreground">{t('totalDeductions')}</p>
+                  <p className="text-2xl font-bold text-destructive">₹{totalDeductions.toLocaleString('en-IN')}</p>
+              </div>
             </div>
-             <div className="flex items-center gap-4 rounded-lg bg-green-500/10 p-4">
-                <div className="rounded-full bg-green-500/20 p-3 text-green-600"><Banknote /></div>
-                <div>
-                    <p className="text-sm text-green-700">{t('netPayable')}</p>
-                    <p className="text-2xl font-bold text-green-600">₹{netPayable.toLocaleString('en-IN')}</p>
-                </div>
+            <div className="flex items-center gap-4 rounded-lg bg-green-500/10 p-4">
+              <div className="rounded-full bg-green-500/20 p-3 text-green-600"><Banknote /></div>
+              <div>
+                  <p className="text-sm text-green-700">{t('netPayable')}</p>
+                  <p className="text-2xl font-bold text-green-600">₹{netPayable.toLocaleString('en-IN')}</p>
+              </div>
             </div>
         </CardContent>
       </Card>
@@ -407,5 +408,7 @@ export default function ReportsPage() {
     </div>
   );
 }
+
+    
 
     
