@@ -39,7 +39,7 @@ export function PayoutInsights({ driver, allTrips, routes, slabs }: PayoutInsigh
         date: trip.date.toDate().toISOString(),
       }));
 
-      const result = await getDriverInsights(driver, plainTrips, slabs, routes);
+      const result = await getDriverInsights(driver.id, plainTrips, slabs, routes);
       if (result.success) {
         setInsights(result.data);
       } else {

@@ -1,14 +1,14 @@
 'use server';
 
 import { driverPayoutInsights, DriverPayoutInsightsInput } from '@/ai/flows/driver-payout-insights-flow';
-import type { Driver, Route, Trip, Slab } from '@/lib/data';
+import type { Route, Trip, Slab } from '@/lib/data';
 import { format, getMonth, getYear } from 'date-fns';
 
 
-export async function getDriverInsights(driver: Driver, allTrips: (Omit<Trip, 'date'> & { date: string })[], slabs: Slab[], routes: Route[]) {
+export async function getDriverInsights(driverId: string, allTrips: (Omit<Trip, 'date'> & { date: string })[], slabs: Slab[], routes: Route[]) {
   try {
-    if (!driver) {
-      throw new Error('Driver not found');
+    if (!driverId) {
+      throw new Error('Driver ID not provided');
     }
 
     const now = new Date();
@@ -56,7 +56,7 @@ export async function getDriverInsights(driver: Driver, allTrips: (Omit<Trip, 'd
 
     // Prepare the input for the AI flow
     const input: DriverPayoutInsightsInput = {
-      driverId: driver.id,
+      driverId: driverId,
       currentMonthTotalTrips,
       slabConfiguration: slabs.map(s => ({min_trips: s.min_trips, max_trips: s.max_trips, payout_amount: s.payout_amount})),
       currentMonthTripEntries,
