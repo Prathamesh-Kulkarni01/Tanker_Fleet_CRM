@@ -1,11 +1,11 @@
 'use server';
 
 import { driverPayoutInsights, DriverPayoutInsightsInput } from '@/ai/flows/driver-payout-insights-flow';
-import type { Route, Trip, Slab } from '@/lib/data';
+import type { Trip, Slab } from '@/lib/data';
 import { format, getMonth, getYear } from 'date-fns';
 
 
-export async function getDriverInsights(driverId: string, allTrips: (Omit<Trip, 'date'> & { date: string })[], slabs: Slab[], routes: Route[]) {
+export async function getDriverInsights(driverId: string, allTrips: (Omit<Trip, 'date'> & { date: string })[], slabs: Slab[], routes: {id: string, name: string}[]) {
   try {
     if (!driverId) {
       throw new Error('Driver ID not provided');

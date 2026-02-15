@@ -50,8 +50,10 @@ export function PayoutInsights({ driver, allTrips, routes, slabs }: PayoutInsigh
           })),
         };
       });
+      
+      const plainRoutes = routes.map(r => ({ id: r.id, name: r.name }));
 
-      const result = await getDriverInsights(driver.id, plainTrips, slabs, routes);
+      const result = await getDriverInsights(driver.id, plainTrips, slabs, plainRoutes);
       if (result.success) {
         setInsights(result.data);
       } else {
