@@ -13,6 +13,16 @@ export async function getDriverInsights(driverId: string, allTrips: (Omit<Trip, 
 
     const now = new Date();
     const currentMonthStr = format(now, 'yyyy-MM');
+    
+    // Create a lookup map for routes for faster access and to handle potential serialization issues.
+    const routeMap = new Map<string, string>();
+    if (routes && Array.isArray(routes)) {
+        routes.forEach(r => {
+            if (r && r.id && r.name) {
+                routeMap.set(r.id, r.name);
+            }
+        });
+    }
 
     // 3. Process current month's trips
     const currentMonthTripEntries = allTrips
@@ -21,9 +31,9 @@ export async function getDriverInsights(driverId: string, allTrips: (Omit<Trip, 
         return format(tripDate, 'yyyy-MM') === currentMonthStr;
       })
       .map(t => {
-          const route = routes.find(r => r.id === t.routeId);
+          const routeName = t.routeId ? routeMap.get(t.routeId) : undefined;
           return {
-            trip_type: route ? route.name : 'Unknown Route',
+            trip_type: routeName || 'Unknown Route',
             trip_count: t.count,
             date: format(new Date(t.date), 'yyyy-MM-dd'),
           }
