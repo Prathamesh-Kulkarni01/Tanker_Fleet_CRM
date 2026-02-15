@@ -6,13 +6,13 @@ import { useFirestore, useDoc } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
-export default function LiveTripPage({ params: { tripId } }: { params: { tripId: string } }) {
+export default function LiveTripPage({ params }: { params: { tripId: string } }) {
   const firestore = useFirestore();
 
   const tripRef = useMemo(() => {
-    if (!firestore || !tripId) return null;
-    return doc(firestore, 'trips', tripId);
-  }, [firestore, tripId]);
+    if (!firestore || !params.tripId) return null;
+    return doc(firestore, 'trips', params.tripId);
+  }, [firestore, params.tripId]);
   const { data: trip, loading: tripLoading } = useDoc<Trip>(tripRef);
 
   const routeRef = useMemo(() => {

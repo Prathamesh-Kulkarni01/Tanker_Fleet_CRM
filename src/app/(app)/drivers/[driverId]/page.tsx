@@ -121,23 +121,23 @@ function DriverPageSkeleton() {
 }
 
 
-export default function DriverPage({ params: { driverId } }: { params: { driverId: string } }) {
+export default function DriverPage({ params }: { params: { driverId: string } }) {
   const { t } = useI18n();
   const { user } = useAuth();
   const firestore = useFirestore();
 
-  const driverRef = useMemo(() => firestore ? doc(firestore, 'users', driverId) : null, [firestore, driverId]);
+  const driverRef = useMemo(() => firestore ? doc(firestore, 'users', params.driverId) : null, [firestore, params.driverId]);
   const { data: driver, loading: driverLoading, error: driverError } = useDoc<Driver>(driverRef);
 
   const ownerId = driver?.ownerId || user?.uid;
 
   const allTripsQuery = useMemo(() => {
-    if (!firestore || !driverId) return null;
+    if (!firestore || !params.driverId) return null;
     return query(
       collection(firestore, 'trips'),
-      where('driverId', '==', driverId)
+      where('driverId', '==', params.driverId)
     );
-  }, [firestore, driverId]);
+  }, [firestore, params.driverId]);
   const { data: allTrips, loading: tripsLoading } = useCollection<Trip>(allTripsQuery);
   
   const routesQuery = useMemo(() => {
@@ -192,7 +192,7 @@ export default function DriverPage({ params: { driverId } }: { params: { driverI
       )
   }
   
-  const canViewPage = (user?.role === 'driver' && user.id === driverId) || (user?.role === 'owner' && driver.ownerId === user.id);
+  const canViewPage = (user?.role === 'driver' && user.id === params.driverId) || (user?.role === 'owner' && driver.ownerId === user.id);
   
   if (!canViewPage) {
       return notFound();
@@ -225,7 +225,7 @@ export default function DriverPage({ params: { driverId } }: { params: { driverI
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <AssignedJobs driverId={driverId} />
+                <AssignedJobs driverId={params.driverId} />
             </CardContent>
         </Card>
 
