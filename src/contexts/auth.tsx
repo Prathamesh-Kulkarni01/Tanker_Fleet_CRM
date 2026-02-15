@@ -90,14 +90,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [auth, firestore]);
 
   const login = async (phone: string, passwordOrCode: string): Promise<{ success: boolean; error?: string }> => {
-    if (!auth) {
+    if (!auth || !firestore) {
       return { success: false, error: 'Auth service not available.' };
     }
 
     try {
       // Use phone number to construct a unique email for Firebase email/password auth
       const email = `${phone}@${DUMMY_EMAIL_DOMAIN}`;
-      await signInWithEmailAndPassword(auth, email, passwordOrCode);
+      const userCredential = await signInWithEmailAndPassword(auth, email, passwordOrCode);
+
+      // After successful auth, immediately verify Firestore profile exists
+      const userDocRef = doc(firestore, 'users', userCredential.user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+          // If the profile doesn't exist in the database, we can't proceed.
+          // We sign the user out from Auth and return a specific error.
+          await signOut(auth);
+          return { success: false, error: 'Login successful, but no user profile found in the database. Please contact an admin.' };
+      }
+      
       // The onAuthStateChanged listener will handle setting the user state and redirection.
       return { success: true };
     } catch (error: any) {
@@ -207,7 +219,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       renewSubscription,
       logout,
       loading,
-  }), [user, loading]);
+  }), [user, loading, logout, renewSubscription, registerOwner, login]);
 
   return (
     <AuthContext.Provider value={memoizedAuthContext()}>
