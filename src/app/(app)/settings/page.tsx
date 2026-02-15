@@ -1,15 +1,15 @@
 'use client';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Trash2 } from 'lucide-react';
+import { PlusCircle, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/contexts/auth';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -31,16 +31,28 @@ const slabsFormSchema = z.object({
   slabs: z.array(slabSchema).refine(
     (slabs) => {
       for (const slab of slabs) {
-        if (slab.max_trips < slab.min_trips) {
+        if (slab.min_trips > slab.max_trips) {
           return false;
         }
       }
       return true;
     },
     {
-      message: "Max trips must be >= min trips.",
+      message: "Max trips must be greater than or equal to min trips for all slabs.",
     }
-  ),
+  ).refine(
+      (slabs) => {
+          for (let i = 0; i < slabs.length - 1; i++) {
+              if (slabs[i].max_trips >= slabs[i+1].min_trips) {
+                  return false;
+              }
+          }
+          return true;
+      },
+      {
+          message: "Slab ranges cannot overlap. Please ensure each slab's min trips is greater than the previous slab's max trips."
+      }
+  )
 });
 
 type SlabsFormValues = z.infer<typeof slabsFormSchema>;
@@ -67,7 +79,7 @@ export default function SettingsPage() {
     mode: 'onChange'
   });
   
-  const { fields: slabFields, append: appendSlab, remove: removeSlab, update: updateSlab, replace: replaceSlabs } = useFieldArray({
+  const { fields: slabFields, append: appendSlab, remove: removeSlab, move: moveSlab, replace: replaceSlabs } = useFieldArray({
     control: slabsForm.control,
     name: 'slabs',
     keyName: 'formId'
@@ -85,18 +97,14 @@ export default function SettingsPage() {
 
     setIsSubmitting(true);
     try {
-        // This simple approach updates all slabs on every save.
-        // A more complex implementation could diff the changes.
         for (const slab of data.slabs) {
             const { id, ...slabData } = slab;
             if (id.startsWith('new-')) {
-                // New slab
                 await addDoc(collection(firestore, 'payoutSlabs'), {
                     ...slabData,
                     ownerId: user.uid,
                 });
             } else {
-                // Existing slab
                 const slabRef = doc(firestore, 'payoutSlabs', id);
                 await updateDoc(slabRef, slabData);
             }
@@ -187,84 +195,102 @@ export default function SettingsPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t('minimumTrips')}</TableHead>
-                        <TableHead>{t('maximumTrips')}</TableHead>
-                        <TableHead>{t('payoutAmount')}</TableHead>
-                        <TableHead className="w-[50px]"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {slabFields.map((field, index) => (
-                        <TableRow key={field.formId}>
-                          <TableCell>
-                            <FormField
-                              control={slabsForm.control}
-                              name={`slabs.${index}.min_trips`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Input type="number" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </TableCell>
-                          <TableCell>
-                              <FormField
-                                control={slabsForm.control}
-                                name={`slabs.${index}.max_trips`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormControl>
-                                      <Input type="number" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                          </TableCell>
-                          <TableCell>
-                            <FormField
-                              control={slabsForm.control}
-                              name={`slabs.${index}.payout_amount`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Input type="number" placeholder="₹" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleRemoveSlab(index)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                    <div className="space-y-4">
+                        {slabFields.map((field, index) => (
+                            <Card key={field.formId} className="p-4 flex items-center gap-2 sm:gap-4 bg-muted/50">
+                                <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <FormField
+                                        control={slabsForm.control}
+                                        name={`slabs.${index}.min_trips`}
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <Label>{t('minimumTrips')}</Label>
+                                                <FormControl>
+                                                    <Input type="number" placeholder="e.g. 0" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={slabsForm.control}
+                                        name={`slabs.${index}.max_trips`}
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <Label>{t('maximumTrips')}</Label>
+                                                <FormControl>
+                                                    <Input type="number" placeholder="e.g. 50" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={slabsForm.control}
+                                        name={`slabs.${index}.payout_amount`}
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <Label>{t('payoutAmount')} (₹)</Label>
+                                                <FormControl>
+                                                    <Input type="number" placeholder="e.g. 5000" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+                                <div className="flex flex-col items-center border-l pl-2">
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7"
+                                        disabled={index === 0}
+                                        onClick={() => moveSlab(index, index - 1)}
+                                    >
+                                        <ArrowUp className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7"
+                                        disabled={index === slabFields.length - 1}
+                                        onClick={() => moveSlab(index, index + 1)}
+                                    >
+                                        <ArrowDown className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() => handleRemoveSlab(index)}
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </Card>
+                        ))}
+                    </div>
                    <Button
                       type="button"
                       size="sm"
                       variant="outline"
                       className="mt-4 gap-1"
-                      onClick={() => appendSlab({ id: `new-${slabFields.length}`, min_trips: 0, max_trips: 0, payout_amount: 0 })}
+                      onClick={() => {
+                        const lastSlabMax = slabFields.length > 0 ? slabFields[slabFields.length - 1].max_trips : -1;
+                        appendSlab({ id: `new-${slabFields.length}`, min_trips: lastSlabMax + 1, max_trips: lastSlabMax + 51, payout_amount: 0 })
+                      }}
                     >
                       <PlusCircle className="h-3.5 w-3.5" />
                       {t('addSlab')}
                     </Button>
+                    {slabsForm.formState.errors.slabs && (
+                        <p className="text-sm font-medium text-destructive mt-2">
+                            {slabsForm.formState.errors.slabs.root?.message}
+                        </p>
+                    )}
                 </CardContent>
               </Card>
             </form>
