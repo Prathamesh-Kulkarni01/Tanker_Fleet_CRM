@@ -27,6 +27,13 @@ export type Route = {
   destCoords: { longitude: number; latitude: number }[];
 };
 
+export type TripEvent = {
+  timestamp: any; // Firestore Timestamp
+  location: string;
+  action: string;
+  notes?: string;
+};
+
 export type Trip = {
   id: string; // This is the Firestore Document ID
   ownerId: string;
@@ -34,7 +41,7 @@ export type Trip = {
   date: any; // Firestore Timestamp
   routeId: string;
   count: number;
-  events?: JobEvent[];
+  events?: TripEvent[];
 };
 
 export type Slab = {
@@ -50,22 +57,4 @@ export type MonthlySummary = {
   month: string; // "YYYY-MM"
   total_trips: number;
   payout: number;
-};
-
-export type JobEvent = {
-  timestamp: any; // Firestore Timestamp
-  location: string;
-  action: string;
-  notes?: string;
-};
-
-export type Job = {
-  id: string; // Firestore document ID
-  ownerId: string;
-  driverId: string;
-  routeId: string;
-  routeName: string;
-  status: 'assigned' | 'accepted' | 'in_progress' | 'completed' | 'cancelled' | 'requested';
-  assignedAt: any; // Firestore Timestamp
-  events: JobEvent[];
 };

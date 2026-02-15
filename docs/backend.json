@@ -225,80 +225,6 @@
         "max_trips",
         "payout_amount"
       ]
-    },
-    "Job": {
-      "title": "Job",
-      "description": "An assigned trip for a driver to complete.",
-      "type": "object",
-      "properties": {
-        "ownerId": {
-          "type": "string",
-          "description": "The UID of the owner who created this job."
-        },
-        "driverId": {
-          "type": "string",
-          "description": "The UID of the driver assigned to this job."
-        },
-        "routeId": {
-          "type": "string",
-          "description": "The ID of the route for this job."
-        },
-        "routeName": {
-          "type": "string",
-          "description": "A descriptive name for the route."
-        },
-        "status": {
-          "type": "string",
-          "enum": [
-            "assigned",
-            "accepted",
-            "in_progress",
-            "completed",
-            "cancelled",
-            "requested"
-          ]
-        },
-        "assignedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "events": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "timestamp": {
-                "type": "string",
-                "format": "date-time"
-              },
-              "location": {
-                "type": "string",
-                "description": "Name of the location (source or destination)."
-              },
-              "action": {
-                "type": "string",
-                "description": "Action performed, e.g., 'Water Filled', 'Water Delivered'."
-              },
-              "notes": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "timestamp",
-              "location",
-              "action"
-            ]
-          }
-        }
-      },
-      "required": [
-        "ownerId",
-        "driverId",
-        "routeId",
-        "routeName",
-        "status",
-        "assignedAt"
-      ]
     }
   },
   "auth": {
@@ -336,12 +262,6 @@
         "$ref": "#/entities/PayoutSlab"
       },
       "description": "All payout slabs. The 'ownerId' field (UID) scopes the data."
-    },
-    "/jobs/{jobId}": {
-      "schema": {
-        "$ref": "#/entities/Job"
-      },
-      "description": "Stores all assigned jobs for drivers."
     }
   }
 }

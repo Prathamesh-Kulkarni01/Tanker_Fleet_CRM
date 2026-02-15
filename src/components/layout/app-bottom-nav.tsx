@@ -8,7 +8,6 @@ import {
   Compass,
   Truck,
   KeyRound,
-  Briefcase,
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -26,7 +25,6 @@ export function AppBottomNav() {
   const baseOwnerItems = [
     { href: '/dashboard', label: t('dashboard'), icon: LayoutDashboard },
     { href: '/fleet', label: t('fleet'), icon: Compass },
-    { href: '/jobs', label: t('jobs'), icon: Briefcase },
     { href: '/trips', label: t('tripEntry'), icon: Truck },
     { href: '/drivers', label: t('drivers'), icon: Users },
     { href: '/routes', label: t('routes'), icon: Map },
