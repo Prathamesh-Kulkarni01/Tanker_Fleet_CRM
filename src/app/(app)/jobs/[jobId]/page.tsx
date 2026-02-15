@@ -8,44 +8,16 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
-import { Check, Truck, MapPin, Milestone, Anchor } from 'lucide-react';
+import { Check, Truck, MapPin, Anchor } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import Map, { Marker } from 'react-map-gl/maplibre';
-import type { MapStyle } from 'maplibre-gl';
-
-const osmStyle: MapStyle = {
-  version: 8,
-  sources: {
-    osm: {
-      type: 'raster',
-      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution:
-        '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    },
-  },
-  layers: [
-    {
-      id: 'osm',
-      type: 'raster',
-      source: 'osm',
-    },
-  ],
-};
-
-const initialViewState = {
-    longitude: 73.8567, // Pune
-    latitude: 18.5204,
-    zoom: 10,
-};
+import { format } from 'date-fns';
 
 function JobPageSkeleton() {
     return (
         <div className="space-y-6">
             <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-64 w-full" />
             <Skeleton className="h-40 w-full" />
             <Skeleton className="h-40 w-full" />
         </div>
@@ -109,8 +81,8 @@ export default function JobPage({ params }: { params: { jobId: string } }) {
     }
 
     const timelineSteps = [
-        { name: route.source, type: 'source', coords: route.sourceCoords }, 
-        ...route.destinations.map((dest, i) => ({ name: dest, type: 'destination', coords: route.destCoords[i] }))
+        { name: route.source, type: 'source' as const }, 
+        ...route.destinations.map((dest, i) => ({ name: dest, type: 'destination' as const }))
     ];
 
     const isActionLogged = (location: string, action: string) => {
@@ -136,26 +108,6 @@ export default function JobPage({ params }: { params: { jobId: string } }) {
                         <Badge variant={job.status === 'completed' ? 'default' : 'secondary'}>{t(job.status)}</Badge>
                     </div>
                 </CardHeader>
-                <CardContent>
-                     <div className="h-64 w-full rounded-md overflow-hidden bg-muted">
-                        <Map initialViewState={initialViewState} mapStyle={osmStyle}>
-                            <Marker longitude={route.sourceCoords.longitude} latitude={route.sourceCoords.latitude}>
-                                <div className="flex flex-col items-center">
-                                    <MapPin className="h-8 w-8 text-blue-600 fill-blue-400/80 drop-shadow-lg" />
-                                    <span className="text-xs font-bold bg-background/80 px-2 py-0.5 rounded-full shadow-lg">S</span>
-                                </div>
-                            </Marker>
-                             {route.destCoords.map((dest, index) => (
-                                <Marker key={index} longitude={dest.longitude} latitude={dest.latitude}>
-                                    <div className="flex flex-col items-center">
-                                        <MapPin className="h-8 w-8 text-red-600 fill-red-400/80 drop-shadow-lg" />
-                                        <span className="text-xs font-bold bg-background/80 px-2 py-0.5 rounded-full shadow-lg">{index + 1}</span>
-                                    </div>
-                                </Marker>
-                            ))}
-                        </Map>
-                     </div>
-                </CardContent>
             </Card>
 
             <div className="space-y-4">
@@ -176,7 +128,7 @@ export default function JobPage({ params }: { params: { jobId: string } }) {
                         const actions = step.type === 'source' ? sourceActions : destActions;
 
                         return (
-                        <Card key={index} className={isComplete ? 'bg-muted/50' : ''}>
+                        <Card key={index} className={isComplete ? 'bg-muted/50 border-green-500/50' : ''}>
                              <CardHeader>
                                 <div className="flex items-center gap-4">
                                     <div className={`flex items-center justify-center h-10 w-10 rounded-full ${isComplete ? 'bg-green-500' : 'bg-primary'} text-primary-foreground`}>
@@ -188,18 +140,18 @@ export default function JobPage({ params }: { params: { jobId: string } }) {
                                     </div>
                                 </div>
                              </CardHeader>
-                             {!isComplete && (
+                             {job.status !== 'completed' && !isComplete && (
                                 <CardContent className="space-y-4 pt-0">
                                     <div className="space-y-2">
                                         {actions.map(action => (
                                             <Button 
                                                 key={action.name}
                                                 variant={action.logged ? "secondary" : "default"}
-                                                className="w-full justify-start gap-2"
+                                                className="w-full justify-start gap-2 h-12 text-base"
                                                 onClick={() => handleAction(step.name, action.name, isFinalStep && action.name.includes('Delivered'))}
                                                 disabled={action.logged || !!submittingAction}
                                             >
-                                                {action.logged ? <Check/> : <Truck/>}
+                                                {action.logged ? <Check className="text-green-500"/> : <Truck/>}
                                                 {t(action.name.toLowerCase().replace(/\s/g, ''))}
                                             </Button>
                                         ))}
@@ -208,6 +160,7 @@ export default function JobPage({ params }: { params: { jobId: string } }) {
                                         placeholder={t('addOptionalNote')}
                                         value={notes}
                                         onChange={(e) => setNotes(e.target.value)}
+                                        disabled={!!submittingAction}
                                     />
                                 </CardContent>
                              )}
