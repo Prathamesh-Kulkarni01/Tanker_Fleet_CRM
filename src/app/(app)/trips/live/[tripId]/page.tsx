@@ -1,18 +1,19 @@
 'use client';
 import { LiveMap } from '@/components/driver/live-map';
 import type { Trip, Route } from '@/lib/data';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useFirestore, useDoc } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function LiveTripPage({ params }: { params: { tripId: string } }) {
   const firestore = useFirestore();
+  const { tripId } = params;
 
   const tripRef = useMemo(() => {
-    if (!firestore || !params.tripId) return null;
-    return doc(firestore, 'trips', params.tripId);
-  }, [firestore, params.tripId]);
+    if (!firestore || !tripId) return null;
+    return doc(firestore, 'trips', tripId);
+  }, [firestore, tripId]);
   const { data: trip, loading: tripLoading } = useDoc<Trip>(tripRef);
 
   const routeRef = useMemo(() => {

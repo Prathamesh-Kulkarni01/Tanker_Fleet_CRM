@@ -41,21 +41,22 @@ export default function DriverPage({ params }: { params: { driverId: string } })
   const { t } = useI18n();
   const { user } = useAuth();
   const firestore = useFirestore();
+  const { driverId } = params;
 
   // Fetch driver data
-  const driverRef = useMemo(() => firestore ? doc(firestore, 'users', params.driverId) : null, [firestore, params.driverId]);
+  const driverRef = useMemo(() => firestore ? doc(firestore, 'users', driverId) : null, [firestore, driverId]);
   const { data: driver, loading: driverLoading } = useDoc<Driver>(driverRef);
 
   const ownerId = driver?.ownerId || user?.uid;
 
   // Fetch ALL trips for the driver, then filter by month on the client
   const allTripsQuery = useMemo(() => {
-    if (!firestore || !params.driverId) return null;
+    if (!firestore || !driverId) return null;
     return query(
       collection(firestore, 'trips'),
-      where('driverId', '==', params.driverId)
+      where('driverId', '==', driverId)
     );
-  }, [firestore, params.driverId]);
+  }, [firestore, driverId]);
   const { data: allTrips, loading: tripsLoading } = useCollection<Trip>(allTripsQuery);
   
   // Fetch owner's routes and slabs
