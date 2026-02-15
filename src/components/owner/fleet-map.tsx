@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import Map, { Marker, Popup, MapRef } from 'react-map-gl/maplibre';
+import Map, { Marker, Popup, MapRef, type MapStyle } from 'react-map-gl/maplibre';
 import Link from 'next/link';
 import { drivers, trips, type Driver } from '@/lib/data';
 import { TruckMarker } from '../icons/truck-marker';
@@ -21,6 +21,29 @@ type DriverPosition = {
 
 // Simulate initial positions around a central point (e.g., Bangalore)
 const initialCenter = { longitude: 77.5946, latitude: 12.9716 };
+
+const osmStyle: MapStyle = {
+  version: 8,
+  sources: {
+    osm: {
+      type: 'raster',
+      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      attribution:
+        '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    },
+  },
+  layers: [
+    {
+      id: 'osm',
+      type: 'raster',
+      source: 'osm',
+      minzoom: 0,
+      maxzoom: 22,
+    },
+  ],
+};
+
 
 function getInitialPositions(): DriverPosition[] {
   const activeDrivers = drivers.filter(d => d.is_active);
@@ -87,7 +110,7 @@ export function FleetMap() {
         {...viewState}
         onMove={evt => setViewState(evt.viewState)}
         style={{ width: '100%', height: '100%' }}
-        mapStyle="https://demotiles.maplibre.org/style.json"
+        mapStyle={osmStyle}
       >
         {driverPositions.map(pos => (
           <Marker

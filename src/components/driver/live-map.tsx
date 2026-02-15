@@ -7,7 +7,7 @@ import Map, {
   Layer,
   MapRef,
 } from 'react-map-gl/maplibre';
-import type { LineLayer, LngLatLike } from 'maplibre-gl';
+import type { LineLayer, LngLatLike, MapStyle } from 'maplibre-gl';
 
 import { useGeolocation } from '@/hooks/use-geolocation';
 import { Card, CardContent } from '@/components/ui/card';
@@ -33,6 +33,29 @@ const lineLayer: LineLayer = {
     'line-opacity': 0.8,
   },
 };
+
+const osmStyle: MapStyle = {
+  version: 8,
+  sources: {
+    osm: {
+      type: 'raster',
+      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      attribution:
+        '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    },
+  },
+  layers: [
+    {
+      id: 'osm',
+      type: 'raster',
+      source: 'osm',
+      minzoom: 0,
+      maxzoom: 22,
+    },
+  ],
+};
+
 
 interface LiveMapProps {
   trip: Trip;
@@ -117,7 +140,7 @@ export function LiveMap({ trip, route }: LiveMapProps) {
         onMove={(evt) => setViewState(evt.viewState)}
         onDragStart={() => setAutoFollow(false)}
         style={{ width: '100%', height: '100%' }}
-        mapStyle="https://demotiles.maplibre.org/style.json"
+        mapStyle={osmStyle}
       >
         {/* Driver Marker */}
         <Marker
