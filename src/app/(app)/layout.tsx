@@ -16,9 +16,9 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen w-full">
         <AppSidebar />
-        <div className="flex flex-1 flex-col md:pl-14">
+        <div className="flex flex-1 flex-col md:pl-14 min-w-0">
           {!isMapPage && <AppHeader />}
           <main
             className={cn(
