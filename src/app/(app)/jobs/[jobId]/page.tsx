@@ -1,7 +1,8 @@
 'use client';
 import { notFound, useParams, useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { useFirestore, useDoc, useAuth } from '@/firebase';
+import { useFirestore, useDoc } from '@/firebase';
+import { useAuth } from '@/contexts/auth';
 import { doc, updateDoc, arrayUnion, Timestamp, addDoc, collection } from 'firebase/firestore';
 import type { Job, Route, Trip } from '@/lib/data';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
