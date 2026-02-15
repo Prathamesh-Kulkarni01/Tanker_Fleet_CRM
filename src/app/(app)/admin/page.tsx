@@ -3,8 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth';
 import { useI18n } from '@/lib/i18n';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { useFirestore } from '@/firebase';
+import { useCollection, useFirestore } from '@/firebase';
 import { collection, doc, setDoc, Timestamp, query, where, updateDoc } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
 

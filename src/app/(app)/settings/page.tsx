@@ -14,8 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormMessage } from '@/component
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, Loader2 } from 'lucide-react';
-import { useFirestore } from '@/firebase';
-import { useCollection } from '@/firebase/firestore/use-collection';
+import { useFirestore, useCollection } from '@/firebase';
 import { query, collection, where, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import type { Slab } from '@/lib/data';
 import { useState, useMemo } from 'react';
