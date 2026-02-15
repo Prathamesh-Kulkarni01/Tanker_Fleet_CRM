@@ -5,18 +5,27 @@ import { AppSidebar } from '@/components/layout/app-sidebar';
 import { AppHeader } from '@/components/layout/app-header';
 import { AppBottomNav } from '@/components/layout/app-bottom-nav';
 import { useAuth } from '@/contexts/auth';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 function AppLayoutContent({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isFleetPage = pathname === '/fleet';
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full flex-col">
         <AppSidebar />
         <div className="flex flex-col md:pl-14">
           <AppHeader />
-          <main className="relative flex flex-1 flex-col overflow-auto p-4 sm:px-6 md:p-8 pb-24 md:pb-8">
+          <main
+            className={cn(
+              'relative flex flex-1 flex-col overflow-auto',
+              !isFleetPage && 'p-4 sm:px-6 md:p-8 pb-24 md:pb-8'
+            )}
+          >
             {children}
           </main>
         </div>
