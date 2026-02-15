@@ -3,7 +3,7 @@ import { useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth';
 import { useI18n } from '@/lib/i18n';
 import { useFirestore, useCollection } from '@/firebase';
-import { collection, query, where, addDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, addDoc, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import type { Job, Driver, Route } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
@@ -19,7 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 
-function JobCard({ job, driverName }: { job: Job, driverName?: string }) {
+function JobCard({ job, driverName, onApprove }: { job: Job, driverName?: string, onApprove?: (jobId: string) => void }) {
     const { t } = useI18n();
     return (
         <Card>
@@ -32,6 +32,7 @@ function JobCard({ job, driverName }: { job: Job, driverName?: string }) {
                         </CardDescription>
                     </div>
                      <Badge variant={
+                        job.status === 'requested' ? 'outline' :
                         job.status === 'assigned' ? 'default' :
                         job.status === 'accepted' ? 'secondary' :
                         job.status === 'in_progress' ? 'outline' :
@@ -41,19 +42,23 @@ function JobCard({ job, driverName }: { job: Job, driverName?: string }) {
             </CardHeader>
             <CardContent>
                 <p className="text-sm text-muted-foreground">
-                    {t('assignedOn')}: {format(job.assignedAt.toDate(), 'PPp')}
+                    {t(job.status === 'requested' ? 'requestedOn' : 'assignedOn')}: {format(job.assignedAt.toDate(), 'PPp')}
                 </p>
             </CardContent>
              <CardFooter>
-                 <Button asChild variant="secondary" size="sm">
-                    <Link href={`/drivers/${job.driverId}`}>{t('viewDriver')}</Link>
-                 </Button>
+                 {job.status === 'requested' && onApprove ? (
+                     <Button onClick={() => onApprove(job.id)} size="sm">{t('assignToDriver')}</Button>
+                 ) : (
+                    <Button asChild variant="secondary" size="sm">
+                        <Link href={`/drivers/${job.driverId}`}>{t('viewDriver')}</Link>
+                    </Button>
+                 )}
             </CardFooter>
         </Card>
     );
 }
 
-function JobsList({ jobs, drivers }: { jobs: Job[] | null; drivers: Driver[] | null }) {
+function JobsList({ jobs, drivers, onApprove }: { jobs: Job[] | null; drivers: Driver[] | null, onApprove?: (jobId: string) => void }) {
     const { t } = useI18n();
 
     if (!jobs || jobs.length === 0) {
@@ -70,7 +75,7 @@ function JobsList({ jobs, drivers }: { jobs: Job[] | null; drivers: Driver[] | n
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {jobs.map(job => {
                 const driver = drivers?.find(d => d.id === job.driverId);
-                return <JobCard key={job.id} job={job} driverName={driver?.name} />;
+                return <JobCard key={job.id} job={job} driverName={driver?.name} onApprove={onApprove} />;
             })}
         </div>
     );
@@ -106,6 +111,7 @@ export default function JobsPage() {
     }, [firestore, user]);
     const { data: activeRoutes, loading: routesLoading } = useCollection<Route>(routesQuery);
 
+    const requestedJobs = useMemo(() => allJobs?.filter(j => j.status === 'requested'), [allJobs]);
     const assignedJobs = useMemo(() => allJobs?.filter(j => j.status === 'assigned' || j.status === 'accepted'), [allJobs]);
     const inProgressJobs = useMemo(() => allJobs?.filter(j => j.status === 'in_progress'), [allJobs]);
     const completedJobs = useMemo(() => allJobs?.filter(j => j.status === 'completed'), [allJobs]);
@@ -141,6 +147,18 @@ export default function JobsPage() {
         }
     };
     
+    const handleApproveRequest = async (jobId: string) => {
+        if (!firestore) return;
+        const jobRef = doc(firestore, 'jobs', jobId);
+        try {
+            await updateDoc(jobRef, { status: 'assigned' });
+            toast({ title: t('jobAssigned'), description: t('driverWillBeNotified') });
+        } catch (e) {
+            console.error("Error approving request: ", e);
+            toast({ variant: 'destructive', title: t('error'), description: t('couldNotAssignJob') });
+        }
+    };
+
     if (user?.role !== 'owner') {
         return (
             <div className="p-4 md:p-8">
@@ -163,12 +181,16 @@ export default function JobsPage() {
             </div>
             
             <Tabs defaultValue="assigned">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
+                    <TabsTrigger value="requested">{t('requested')} {requestedJobs && requestedJobs.length > 0 && `(${requestedJobs.length})`}</TabsTrigger>
                     <TabsTrigger value="assigned">{t('assigned')}</TabsTrigger>
                     <TabsTrigger value="in_progress">{t('inProgress')}</TabsTrigger>
                     <TabsTrigger value="completed">{t('completed')}</TabsTrigger>
                 </TabsList>
                 {isLoading ? <Skeleton className="h-64 w-full mt-4" /> : <>
+                    <TabsContent value="requested" className="mt-6">
+                        <JobsList jobs={requestedJobs || []} drivers={activeDrivers} onApprove={handleApproveRequest} />
+                    </TabsContent>
                     <TabsContent value="assigned" className="mt-6">
                         <JobsList jobs={assignedJobs || []} drivers={activeDrivers} />
                     </TabsContent>

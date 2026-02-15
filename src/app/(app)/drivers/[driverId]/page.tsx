@@ -1,25 +1,321 @@
 'use client';
-import { notFound, useParams } from 'next/navigation';
+import { notFound, useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PayoutInsights } from '@/components/driver/payout-insights';
 import { format, startOfMonth } from 'date-fns';
-import { Truck, DollarSign, Award, Briefcase, AlertCircle } from 'lucide-react';
+import { Truck, DollarSign, Award, Briefcase, AlertCircle, Check, MapPin, Anchor, Pencil, Send, CheckCircle, ArrowLeft, RotateCw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/auth';
 import { useFirestore, useCollection, useDoc } from '@/firebase';
-import { collection, doc, query, where, updateDoc } from 'firebase/firestore';
+import { collection, doc, query, where, updateDoc, arrayUnion, Timestamp, addDoc } from 'firebase/firestore';
 import type { Trip, Route, Slab, Driver, Job } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { DriverLocationUpdater } from '@/components/driver/driver-location-updater';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 
 
-function AssignedJobs({ driverId }: { driverId: string; }) {
+function DriverTripTimeline({ jobId, onBack }: { jobId: string, onBack: () => void }) {
+    const { t } = useI18n();
+    const { toast } = useToast();
+    const firestore = useFirestore();
+    const { user } = useAuth();
+    
+    const [notes, setNotes] = useState('');
+    const [submittingAction, setSubmittingAction] = useState<string | null>(null);
+    const [isCompleted, setIsCompleted] = useState(false);
+
+    const jobRef = useMemo(() => firestore ? doc(firestore, 'jobs', jobId) : null, [firestore, jobId]);
+    const { data: job, loading: jobLoading } = useDoc<Job>(jobRef);
+
+    const routeRef = useMemo(() => (firestore && job) ? doc(firestore, 'routes', job.routeId) : null, [firestore, job]);
+    const { data: route, loading: routeLoading } = useDoc<Route>(routeRef);
+    
+    const handleCompleteTrip = async () => {
+        if (!firestore || !job || !user || !route || !jobRef) return;
+
+        setSubmittingAction('complete_trip');
+        try {
+            // 1. Log the final "completed" event
+            const event = {
+                timestamp: Timestamp.now(),
+                location: 'Trip End',
+                action: 'Trip Completed by Driver',
+                notes: '',
+            };
+            const jobUpdatePromise = updateDoc(jobRef, {
+                status: 'completed',
+                events: arrayUnion(event),
+            });
+
+            // 2. Create a trip entry for reporting and payroll
+            const tripData: Omit<Trip, 'id'> = {
+                ownerId: job.ownerId,
+                driverId: job.driverId,
+                routeId: job.routeId,
+                count: 1, // Each job is counted as 1 trip
+                date: job.assignedAt, // Use the date the job was assigned for consistency
+            };
+            const tripAddPromise = addDoc(collection(firestore, 'trips'), tripData);
+
+            await Promise.all([jobUpdatePromise, tripAddPromise]);
+            
+            toast({ 
+                title: t('tripCompleted'),
+                description: t('yourTripHasBeenLogged')
+            });
+            setIsCompleted(true);
+
+        } catch (e) {
+            console.error(e);
+            toast({ variant: 'destructive', title: t('error'), description: t('couldNotCompleteTrip') });
+        } finally {
+            setSubmittingAction(null);
+        }
+    };
+    
+    const handleAction = async (location: string, action: string) => {
+        if (!firestore || !jobRef) return;
+        setSubmittingAction(action);
+        
+        const event = {
+            timestamp: Timestamp.now(),
+            location,
+            action,
+            notes: notes,
+        };
+
+        const updates: any = {
+            events: arrayUnion(event)
+        };
+
+        if (job?.status === 'accepted') {
+            updates.status = 'in_progress';
+        }
+        
+        try {
+            await updateDoc(jobRef, updates);
+            toast({ title: t('actionLogged'), description: `${action} at ${location}`});
+            setNotes('');
+        } catch(e) {
+            console.error(e);
+            toast({ variant: 'destructive', title: t('error'), description: t('couldNotLogAction')});
+        } finally {
+            setSubmittingAction(null);
+        }
+    };
+
+    const handleRequestAgain = async () => {
+        if (!firestore || !user || !job) return;
+        setSubmittingAction('request_again');
+        try {
+            await addDoc(collection(firestore, 'jobs'), {
+                ownerId: job.ownerId,
+                driverId: job.driverId,
+                routeId: job.routeId,
+                routeName: job.routeName,
+                status: 'requested',
+                assignedAt: Timestamp.now(),
+                events: [],
+            });
+            toast({ title: t('tripRequested'), description: t('ownerHasBeenNotified') });
+            onBack(); // Go back to job list
+        } catch (e) {
+            console.error(e);
+            toast({ variant: 'destructive', title: t('error'), description: t('couldNotRequestTrip') });
+        } finally {
+            setSubmittingAction(null);
+        }
+    };
+    
+    const isLoading = jobLoading || routeLoading;
+
+    if (isLoading) {
+        return (
+            <div className="space-y-6">
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-40 w-full" />
+                <Skeleton className="h-40 w-full" />
+            </div>
+        )
+    }
+    
+    if (!job) {
+        return notFound();
+    }
+    
+    if (isCompleted || job.status === 'completed') {
+        return (
+            <Card className="text-center">
+                <CardHeader>
+                    <CheckCircle className="mx-auto h-16 w-16 text-green-500" />
+                    <CardTitle className="text-2xl">{t('tripCompleted')}</CardTitle>
+                    <CardDescription>{t('yourTripHasBeenLogged')}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-2">
+                    <Button onClick={handleRequestAgain} disabled={!!submittingAction}>
+                        <RotateCw className="mr-2 h-4 w-4" />
+                        {submittingAction === 'request_again' ? t('requesting') : t('requestSameTripAgain')}
+                    </Button>
+                    <Button variant="outline" onClick={onBack}>
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        {t('backToJobs')}
+                    </Button>
+                </CardContent>
+            </Card>
+        )
+    }
+
+    if (!route) {
+        return (
+            <div className="p-4 md:p-8">
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>{t('error')}</AlertTitle>
+                  <AlertDescription>
+                    Could not load route data for this job. The route may have been deleted.
+                  </AlertDescription>
+                </Alert>
+            </div>
+        )
+    }
+
+    const timelineSteps = [
+        { name: route.source, type: 'source' as const }, 
+        ...route.destinations.map((dest, i) => ({ name: dest, type: 'destination' as const, index: i+1 }))
+    ];
+
+    const isActionLogged = (location: string, action: string) => {
+        return job.events.some(e => e.location === location && e.action.includes(action));
+    }
+
+    const isStepComplete = (step: typeof timelineSteps[number]) => {
+        const requiredAction = step.type === 'source' ? 'Water Filled' : 'Water Delivered';
+        return isActionLogged(step.name, requiredAction);
+    }
+    
+    const allStepsComplete = timelineSteps.every(isStepComplete);
+
+    return (
+        <div className="space-y-6">
+            {user?.role === 'driver' && <DriverLocationUpdater />}
+
+            <Card className="shadow-lg">
+                <CardHeader>
+                    <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                             <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0"><ArrowLeft/></Button>
+                            <div>
+                                <CardTitle className="text-2xl font-bold font-headline">{job.routeName}</CardTitle>
+                                <CardDescription className="text-base">{t('assignedOn')}: {format(job.assignedAt.toDate(), 'PPp')}</CardDescription>
+                            </div>
+                        </div>
+                        <Badge variant={job.status === 'completed' ? 'default' : 'secondary'} className="text-lg px-4 py-1">{t(job.status)}</Badge>
+                    </div>
+                </CardHeader>
+            </Card>
+
+            <div className="space-y-8">
+                 <div className="relative flex flex-col gap-8 pl-6 before:absolute before:left-6 before:top-5 before:h-full before:w-0.5 before:bg-border">
+                    {timelineSteps.map((step, index) => {
+                        const isComplete = isStepComplete(step);
+                        const actions = step.type === 'source' 
+                            ? [{ name: 'Arrived at Source', logged: isActionLogged(step.name, 'Arrived')}, { name: 'Water Filled', logged: isActionLogged(step.name, 'Filled')}]
+                            : [{ name: 'Arrived at Destination', logged: isActionLogged(step.name, 'Arrived')}, { name: 'Water Delivered', logged: isActionLogged(step.name, 'Delivered')}];
+
+                        return (
+                        <div key={index} className="relative">
+                            <div className={`absolute -left-9 flex items-center justify-center h-6 w-6 rounded-full ${isComplete ? 'bg-green-500' : 'bg-primary'} text-primary-foreground`}>
+                                {isComplete ? <Check size={16} /> : (step.type === 'source' ? <Anchor size={16}/> : <MapPin size={16}/>)}
+                            </div>
+                            <Card className={cn("transition-all", isComplete ? 'bg-muted/30 border-green-500/30' : 'border-primary/30', job.status === 'completed' && 'bg-muted/30')}>
+                                 <CardHeader>
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <CardTitle className="text-xl">{step.name}</CardTitle>
+                                            <CardDescription>{step.type === 'source' ? t('source') : `${t('destination')} ${step.index}`}</CardDescription>
+                                        </div>
+                                        {isComplete && <CheckCircle className="text-green-500"/>}
+                                    </div>
+                                 </CardHeader>
+                                 {job.status !== 'completed' && !isComplete && (
+                                    <CardContent className="space-y-4 pt-0">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                            {actions.map(action => (
+                                                <Button 
+                                                    key={action.name}
+                                                    variant={action.logged ? "secondary" : "default"}
+                                                    className="w-full justify-center gap-2 h-14 text-base"
+                                                    onClick={() => handleAction(step.name, action.name)}
+                                                    disabled={action.logged || !!submittingAction}
+                                                >
+                                                    {action.logged ? <Check className="text-green-500"/> : <Truck/>}
+                                                    {t(action.name.toLowerCase().replace(/\s/g, ''))}
+                                                </Button>
+                                            ))}
+                                        </div>
+                                        <div className="flex gap-2 items-center">
+                                            <Pencil className="text-muted-foreground"/>
+                                            <Textarea 
+                                                placeholder={t('addOptionalNote')}
+                                                value={notes}
+                                                onChange={(e) => setNotes(e.target.value)}
+                                                disabled={!!submittingAction}
+                                                rows={1}
+                                                className="resize-none"
+                                            />
+                                            <Button variant="ghost" size="icon" disabled={!notes || !!submittingAction} onClick={() => handleAction(step.name, "Note Added")}>
+                                                <Send/>
+                                            </Button>
+                                        </div>
+                                    </CardContent>
+                                 )}
+                            </Card>
+                        </div>
+                    )})}
+                 </div>
+            </div>
+
+            {job.status !== 'completed' && allStepsComplete && (
+                <Card className="bg-green-500/10 border-green-500/50 text-center shadow-lg">
+                    <CardHeader>
+                        <CardTitle>All Destinations Covered!</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground mb-4">You have completed all steps. Ready to complete the trip?</p>
+                        <Button
+                            size="lg"
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={handleCompleteTrip}
+                            disabled={!!submittingAction}
+                        >
+                            {submittingAction === 'complete_trip' ? 'Completing...' : 'Complete & Log Trip'}
+                        </Button>
+                    </CardContent>
+                </Card>
+            )}
+
+             {job.status === 'completed' && (
+                <Alert>
+                  <Truck className="h-4 w-4" />
+                  <AlertTitle>Trip Completed</AlertTitle>
+                  <AlertDescription>
+                    This trip is logged and marked as completed.
+                  </AlertDescription>
+                </Alert>
+             )}
+        </div>
+    );
+}
+
+function AssignedJobs({ driverId, onStartTrip }: { driverId: string; onStartTrip: (jobId: string) => void; }) {
     const { t } = useI18n();
     const firestore = useFirestore();
     const { toast } = useToast();
@@ -93,10 +389,8 @@ function AssignedJobs({ driverId }: { driverId: string; }) {
                                 </Button>
                             )}
                             {(job.status === 'accepted' || job.status === 'in_progress') && (
-                                 <Button asChild>
-                                    <Link href={`/jobs/${job.id}`}>
-                                        {job.status === 'accepted' ? t('startTrip') : t('continueTrip')}
-                                    </Link>
+                                 <Button onClick={() => onStartTrip(job.id)}>
+                                     {job.status === 'accepted' ? t('startTrip') : t('continueTrip')}
                                  </Button>
                             )}
                          </div>
@@ -127,6 +421,7 @@ export default function DriverPage() {
   const { t } = useI18n();
   const { user } = useAuth();
   const firestore = useFirestore();
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
 
   const driverRef = useMemo(() => firestore ? doc(firestore, 'users', driverId) : null, [firestore, driverId]);
   const { data: driver, loading: driverLoading, error: driverError } = useDoc<Driver>(driverRef);
@@ -175,6 +470,10 @@ export default function DriverPage() {
   }, [totalTrips, slabs]);
 
   const isLoading = driverLoading || tripsLoading || routesLoading || slabsLoading;
+
+  if (activeJobId) {
+    return <DriverTripTimeline jobId={activeJobId} onBack={() => setActiveJobId(null)} />;
+  }
 
   if (isLoading) {
     return <DriverPageSkeleton />;
@@ -227,7 +526,7 @@ export default function DriverPage() {
                 </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
-                <AssignedJobs driverId={driverId} />
+                <AssignedJobs driverId={driverId} onStartTrip={setActiveJobId} />
             </CardContent>
         </Card>
 
