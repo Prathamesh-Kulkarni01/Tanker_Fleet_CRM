@@ -31,15 +31,14 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useI18n } from '@/lib/i18n';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, ArrowRight, MapPin, AlertCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, ArrowRight, MapPin, AlertCircle, LocateFixed, X } from 'lucide-react';
 import { useAuth } from '@/contexts/auth';
 import { Alert, AlertTitle, AlertDescription as AlertDescriptionComponent } from '@/components/ui/alert';
-import { Textarea } from '@/components/ui/textarea';
 import { useFirestore } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, doc, addDoc, setDoc, updateDoc } from 'firebase/firestore';
@@ -48,10 +47,16 @@ import { Skeleton } from '@/components/ui/skeleton';
 import Map, { Marker, MapRef, type MapStyle } from 'react-map-gl/maplibre';
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
 import { cn } from '@/lib/utils';
+import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
+
 
 const routeSchema = z.object({
-  source: z.string().min(3, { message: 'Source must be at least 3 characters.' }),
-  destinations: z.string().min(3, { message: 'Enter at least one destination.' }),
+  source: z.string().min(1, { message: 'Source name is required.' }),
+  destinations: z.array(
+      z.object({
+          name: z.string().min(1, { message: 'Destination name is required.' }),
+      })
+  ).min(1, 'At least one destination is required.'),
   rate_per_trip: z.coerce.number().positive({ message: 'Rate must be a positive number.' }),
 });
 
@@ -87,12 +92,11 @@ export default function RoutesPage() {
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
 
   // State for map interactions
-  const [selectionMode, setSelectionMode] = useState<'source' | 'destination'>('source');
+  const [activeFieldIndex, setActiveFieldIndex] = useState<'source' | number | null>('source');
   const [sourceCoords, setSourceCoords] = useState<{latitude: number, longitude: number} | null>(null);
   const [destCoords, setDestCoords] = useState<{latitude: number, longitude: number}[]>([]);
   const mapRef = useRef<MapRef>(null);
 
-  // NEW state for location search
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState<any[]>([]);
 
@@ -111,18 +115,28 @@ export default function RoutesPage() {
 
   const form = useForm<RouteFormValues>({
     resolver: zodResolver(routeSchema),
+    defaultValues: {
+        source: '',
+        destinations: [{ name: '' }],
+        rate_per_trip: 0,
+    }
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "destinations"
   });
   
   const resetMapState = () => {
       setSourceCoords(null);
       setDestCoords([]);
-      setSelectionMode('source');
+      setActiveFieldIndex('source');
   }
 
   const handleAddRoute = () => {
     setEditingRoute(null);
     resetMapState();
-    form.reset({ source: '', destinations: '', rate_per_trip: 0 });
+    form.reset({ source: '', destinations: [{ name: '' }], rate_per_trip: 0 });
     setIsDialogOpen(true);
   };
 
@@ -132,10 +146,20 @@ export default function RoutesPage() {
     setDestCoords(route.destCoords || []);
     form.reset({ 
         source: route.source, 
-        destinations: route.destinations.join(', '), 
+        destinations: route.destinations.map(name => ({ name })),
         rate_per_trip: route.rate_per_trip 
     });
+    setActiveFieldIndex(null);
     setIsDialogOpen(true);
+  };
+
+  const handleRemoveDestination = (index: number) => {
+    remove(index);
+    setDestCoords(prev => {
+        const newCoords = [...prev];
+        newCoords.splice(index, 1);
+        return newCoords;
+    });
   };
 
   const handleDeactivateRoute = async (routeId: string) => {
@@ -163,23 +187,19 @@ export default function RoutesPage() {
         toast({ variant: 'destructive', title: 'Missing Location', description: 'Please select a source location on the map.' });
         return;
     }
-    const destinationNames = data.destinations.split(',').map(d => d.trim()).filter(Boolean);
-    if(destinationNames.length > 0 && destCoords.length === 0){
-        toast({ variant: 'destructive', title: 'Missing Location', description: 'Please select destination locations on the map.' });
-        return;
-    }
-    if (destinationNames.length !== destCoords.length) {
+    
+    if (data.destinations.length !== destCoords.length) {
         toast({
             variant: 'destructive',
-            title: 'Mismatched Locations',
-            description: `You have entered ${destinationNames.length} destination names but selected ${destCoords.length} points on the map. Please ensure they match.`,
+            title: 'Mismatched Destinations',
+            description: `You have ${data.destinations.length} destination fields but have placed ${destCoords.length} pins on the map. Please ensure they match.`,
         });
         return;
     }
 
     const routeData = {
         ...data,
-        destinations: destinationNames,
+        destinations: data.destinations.map(d => d.name),
         sourceCoords,
         destCoords,
     };
@@ -187,7 +207,6 @@ export default function RoutesPage() {
     try {
         if (editingRoute) {
           const routeRef = doc(firestore, 'routes', editingRoute.id);
-          // Omit ownerId and is_active from update data as they shouldn't be changed here.
           const { ownerId, is_active, ...updateData } = { ...editingRoute, ...routeData };
           await setDoc(routeRef, updateData, { merge: true });
         } else {
@@ -214,10 +233,20 @@ export default function RoutesPage() {
 
   const handleMapClick = (e: mapboxgl.MapLayerMouseEvent) => {
       const { lng, lat } = e.lngLat;
-      if (selectionMode === 'source') {
+      if (activeFieldIndex === 'source') {
           setSourceCoords({ latitude: lat, longitude: lng });
+      } else if (typeof activeFieldIndex === 'number') {
+          setDestCoords(prev => {
+              const newCoords = [...prev];
+              newCoords[activeFieldIndex] = { latitude: lat, longitude: lng };
+              return newCoords;
+          });
       } else {
-          setDestCoords(prev => [...prev, { latitude: lat, longitude: lng }]);
+          toast({
+              variant: 'destructive',
+              title: "Select a Field First",
+              description: "Click on a source or destination field before placing a pin on the map.",
+          })
       }
   }
 
@@ -382,114 +411,134 @@ export default function RoutesPage() {
       </Button>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-3xl">
-           <DialogHeader>
+        <DialogContent className="sm:max-w-4xl h-[90vh] flex flex-col p-0">
+           <DialogHeader className="p-6 pb-0">
             <DialogTitle>{editingRoute ? t('editRoute') : t('addRoute')}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
-            <div className="overflow-y-auto max-h-[70vh] p-1 -m-6 px-6">
-                <div className="grid md:grid-cols-2 gap-6 py-4">
-                    {/* Form Inputs Column */}
-                    <div className="space-y-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="source">Source Name (Filling Point)</Label>
-                            <Input id="source" {...form.register('source')} />
-                            {form.formState.errors.source && (
-                            <p className="text-sm text-destructive">{form.formState.errors.source.message}</p>
-                            )}
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="destinations">Destination Names (Delivery Points)</Label>
-                            <Textarea id="destinations" {...form.register('destinations')} placeholder="e.g. Corporate Park, Tech Tower" />
-                            <p className="text-xs text-muted-foreground">Enter multiple destinations separated by a comma.</p>
-                            {form.formState.errors.destinations && (
-                            <p className="text-sm text-destructive">{form.formState.errors.destinations.message}</p>
-                            )}
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="rate_per_trip">{t('ratePerTrip')}</Label>
-                            <Input id="rate_per_trip" type="number" {...form.register('rate_per_trip')} />
-                            {form.formState.errors.rate_per_trip && (
-                            <p className="text-sm text-destructive">{form.formState.errors.rate_per_trip.message}</p>
-                            )}
-                        </div>
-                    </div>
+            <div className="flex-1 flex flex-col gap-4 overflow-hidden px-6">
+                <div className="relative">
+                    <Input
+                        id="location-search"
+                        placeholder="Search for a location..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        autoComplete="off"
+                        className="pl-10"
+                    />
+                     <LocateFixed className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    {suggestions.length > 0 && (
+                        <Card className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto">
+                            <CardContent className="p-1">
+                                {suggestions.map((suggestion) => (
+                                    <div
+                                        key={suggestion.place_id}
+                                        onMouseDown={() => handleSuggestionClick(suggestion)}
+                                        className="p-2 text-sm rounded-sm hover:bg-accent cursor-pointer"
+                                    >
+                                        {suggestion.display_name}
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
 
-                    {/* Map Column */}
-                    <div className="space-y-4">
-                      <div>
-                          <Label htmlFor="location-search">Location Search</Label>
-                          <div className="relative">
-                              <Input
-                                  id="location-search"
-                                  placeholder="Find a location on the map..."
-                                  value={searchQuery}
-                                  onChange={(e) => setSearchQuery(e.target.value)}
-                                  autoComplete="off"
-                              />
-                              {suggestions.length > 0 && (
-                                  <Card className="absolute z-20 w-full mt-1 max-h-60 overflow-y-auto">
-                                      <CardContent className="p-1">
-                                          {suggestions.map((suggestion) => (
-                                              <div
-                                                  key={suggestion.place_id}
-                                                  onMouseDown={() => handleSuggestionClick(suggestion)}
-                                                  className="p-2 text-sm rounded-sm hover:bg-accent cursor-pointer"
-                                              >
-                                                  {suggestion.display_name}
-                                              </div>
-                                          ))}
-                                      </CardContent>
-                                  </Card>
-                              )}
-                          </div>
-                      </div>
-
-                      <div>
-                          <Label>Set Locations on Map</Label>
-                          <div className="flex items-center gap-2 flex-wrap">
-                              <Button type="button" size="sm" variant={selectionMode === 'source' ? 'default' : 'outline'} onClick={() => setSelectionMode('source')}>Set Source</Button>
-                              <Button type="button" size="sm" variant={selectionMode === 'destination' ? 'default' : 'outline'} onClick={() => setSelectionMode('destination')}>Add Destination</Button>
-                              <Button type="button" size="sm" variant="destructive" onClick={() => { resetMapState(); setSearchQuery(''); setSuggestions([]);}}>Clear Pins</Button>
-                          </div>
-                          <p className="text-xs text-muted-foreground h-8 pt-1">
-                              {selectionMode === 'source' ? 'Click on the map to place the source pin.' : `Click to add destination pin ${destCoords.length + 1}.`}
-                          </p>
-                      </div>
-
-                      <div className="w-full h-64 rounded-md overflow-hidden relative bg-muted">
-                          <Map
-                             ref={mapRef}
-                             initialViewState={initialViewState}
-                             style={{width: '100%', height: '100%'}}
-                             mapStyle={osmStyle}
-                             onClick={handleMapClick}
-                             >
-                             {sourceCoords && (
-                                  <Marker longitude={sourceCoords.longitude} latitude={sourceCoords.latitude}>
-                                      <MapPin className="h-6 w-6 text-blue-600 fill-blue-400/80" />
-                                  </Marker>
-                             )}
-                             {destCoords.map((coords, index) => (
-                                  <Marker key={index} longitude={coords.longitude} latitude={coords.latitude}>
-                                      <MapPin className="h-6 w-6 text-red-600 fill-red-400/80" />
-                                  </Marker>
-                             ))}
-                          </Map>
-                      </div>
-                  </div>
-
+                <div className="flex-1 w-full rounded-md overflow-hidden relative bg-muted">
+                    <Map
+                        ref={mapRef}
+                        initialViewState={initialViewState}
+                        style={{width: '100%', height: '100%'}}
+                        mapStyle={osmStyle}
+                        onClick={handleMapClick}
+                        >
+                        {sourceCoords && (
+                            <Marker longitude={sourceCoords.longitude} latitude={sourceCoords.latitude}>
+                                <div className="flex flex-col items-center cursor-pointer">
+                                  <MapPin className="h-8 w-8 text-blue-600 fill-blue-400/80 drop-shadow-lg" />
+                                  <span className="text-xs font-bold bg-background/80 px-2 py-0.5 rounded-full shadow-lg">S</span>
+                                </div>
+                            </Marker>
+                        )}
+                        {destCoords.map((coords, index) => (
+                            <Marker key={index} longitude={coords.longitude} latitude={coords.latitude}>
+                                 <div className="flex flex-col items-center cursor-pointer">
+                                    <MapPin className="h-8 w-8 text-red-600 fill-red-400/80 drop-shadow-lg" />
+                                     <span className="text-xs font-bold bg-background/80 px-2 py-0.5 rounded-full shadow-lg">{index + 1}</span>
+                                </div>
+                            </Marker>
+                        ))}
+                    </Map>
                 </div>
             </div>
-            <DialogFooter className="pt-6">
-              <DialogClose asChild>
-                <Button type="button" variant="secondary">
-                  {t('cancel')}
-                </Button>
-              </DialogClose>
-              <Button type="submit">{t('saveChanges')}</Button>
-            </DialogFooter>
+            
+            <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)}>
+            <div className="bg-muted/50 p-6 border-t">
+                <div className="max-h-[25vh] overflow-y-auto pr-2 space-y-4">
+                    <FormField
+                        control={form.control}
+                        name="source"
+                        render={({ field }) => (
+                            <FormItem>
+                                <div className={cn("grid grid-cols-[auto,1fr,auto] items-center gap-2 transition-all p-2 rounded-lg", activeFieldIndex === 'source' ? 'bg-blue-100 dark:bg-blue-900/50' : '')}>
+                                    <Label htmlFor="source" className="font-bold">Source</Label>
+                                    <FormControl>
+                                        <Input id="source" placeholder="Source Name (e.g. Hinjewadi Lake)" {...field} onFocus={() => setActiveFieldIndex('source')} />
+                                    </FormControl>
+                                </div>
+                                <FormMessage className="pl-12"/>
+                            </FormItem>
+                        )}
+                    />
+
+                    {fields.map((item, index) => (
+                         <FormField
+                            key={item.id}
+                            control={form.control}
+                            name={`destinations.${index}.name`}
+                            render={({ field }) => (
+                                <FormItem>
+                                    <div className={cn("grid grid-cols-[auto,1fr,auto] items-center gap-2 transition-all p-2 rounded-lg", activeFieldIndex === index ? 'bg-red-100 dark:bg-red-900/50' : '')}>
+                                        <Label htmlFor={`destinations.${index}.name`} className="font-bold">Dest. {index + 1}</Label>
+                                        <FormControl>
+                                            <Input placeholder={`Destination ${index + 1} Name`} {...field} onFocus={() => setActiveFieldIndex(index)} />
+                                        </FormControl>
+                                        <Button type="button" size="icon" variant="ghost" className="text-muted-foreground hover:text-destructive h-8 w-8" onClick={() => handleRemoveDestination(index)}><X /></Button>
+                                    </div>
+                                    <FormMessage className="pl-12"/>
+                                </FormItem>
+                            )}
+                        />
+                    ))}
+
+                    <Button type="button" size="sm" variant="outline" onClick={() => append({ name: '' })} className="ml-12">Add Destination</Button>
+                    
+                    <FormField
+                        control={form.control}
+                        name="rate_per_trip"
+                        render={({ field }) => (
+                            <FormItem className="grid grid-cols-[auto,1fr] items-center gap-2 pt-4">
+                                <Label htmlFor="rate_per_trip" className="font-bold">Rate/Trip</Label>
+                                <FormControl>
+                                    <Input id="rate_per_trip" type="number" placeholder="e.g. 500" {...field} />
+                                </FormControl>
+                                <FormMessage className="col-span-2 pl-12"/>
+                            </FormItem>
+                        )}
+                    />
+
+                </div>
+                <DialogFooter className="pt-6">
+                <DialogClose asChild>
+                    <Button type="button" variant="secondary">
+                    {t('cancel')}
+                    </Button>
+                </DialogClose>
+                <Button type="submit">{t('saveChanges')}</Button>
+                </DialogFooter>
+            </div>
           </form>
+          </Form>
         </DialogContent>
       </Dialog>
     </div>
