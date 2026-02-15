@@ -50,3 +50,21 @@ export type MonthlySummary = {
   total_trips: number;
   payout: number;
 };
+
+export type JobEvent = {
+  timestamp: any; // Firestore Timestamp
+  location: string;
+  action: string;
+  notes?: string;
+};
+
+export type Job = {
+  id: string; // Firestore document ID
+  ownerId: string;
+  driverId: string;
+  routeId: string;
+  routeName: string;
+  status: 'assigned' | 'accepted' | 'in_progress' | 'completed' | 'cancelled' | 'requested';
+  assignedAt: any; // Firestore Timestamp
+  events: JobEvent[];
+};
